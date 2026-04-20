@@ -87,3 +87,6 @@ const FirebaseDB = {
 
 // Initialize as soon as script is parsed
 FirebaseDB.init();
+
+// Expor para o escopo global para que o App.js consiga enxergar
+window.FirebaseDB = FirebaseDB;
