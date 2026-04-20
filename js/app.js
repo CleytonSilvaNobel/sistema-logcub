@@ -102,7 +102,8 @@ const state = {
             const defaults = [
                 { id: '1', username: 'adm', password: 'Senha123', roles: ['adm'], name: 'Administrador' },
                 { id: '2', username: 'supervisor', password: 'Senha123', roles: ['supervisor'], name: 'Supervisor' },
-                { id: '3', username: 'operador', password: 'Senha123', roles: ['operador'], name: 'Operador' }
+                { id: '3', username: 'operador', password: 'Senha123', roles: ['operador'], name: 'Operador' },
+                { id: '4', username: 'visitante', password: 'Senha123', roles: ['visitante'], name: 'Visitante' }
             ];
             localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(defaults));
             return defaults;
@@ -167,16 +168,19 @@ const state = {
         if (!this.currentUser) return false;
         if (this.hasRole('adm')) return true;
         const roles = this.currentUser.roles;
+        const isVisitante = roles.includes('visitante');
         
         switch(action) {
             case 'manage_users': return roles.includes('adm');
             case 'delete_product':
             case 'import_data':
-            case 'inactivate_product': return roles.includes('supervisor') || roles.includes('adm');
-            case 'add_product': return true;
+            case 'inactivate_product': return (roles.includes('supervisor') || roles.includes('adm')) && !isVisitante;
+            case 'add_product': 
+            case 'edit_product': return !isVisitante;
             case 'view_dashboard': 
             case 'view_results':
             case 'view_simulation': return true;
+            case 'sync_cloud': return !isVisitante;
             default: return false;
         }
     },
@@ -304,7 +308,7 @@ const renderProductList = (filter = '') => {
                         <th>Dimensões (cm)</th>
                         <th>Peso Médio</th>
                         <th>Autor</th>
-                        <th>Ações</th>
+                        ${!state.can('edit_product') ? '' : '<th>Ações</th>'}
                     </tr>
                 </thead>
                 <tbody>
@@ -329,6 +333,7 @@ const renderProductList = (filter = '') => {
                             <td>${p.comprimento_cm}x${p.largura_cm}x${p.altura_cm}</td>
                             <td>${CR_CALC.formatValue(p.peso_medio_calc, state.parameters.decimais_peso)} kg</td>
                             <td style="font-size: 0.75rem; color: var(--text-secondary);">${p.criado_por || '-'}</td>
+                            ${state.can('edit_product') ? `
                             <td style="display: flex; gap: 0.5rem;">
                                 ${state.can('inactivate_product') ? `
                                 <button class="btn btn-secondary toggle-status" data-id="${p.id}" title="${p.ativo ? 'Inativar' : 'Ativar'}" style="padding: 0.4rem;">
@@ -340,6 +345,7 @@ const renderProductList = (filter = '') => {
                                 <button class="btn btn-secondary delete-product" data-id="${p.id}" style="padding: 0.4rem; color: var(--danger);"><i data-lucide="trash"></i></button>
                                 ` : ''}
                             </td>
+                            ` : ''}
                         </tr>
                     `).join('')}
                 </tbody>
@@ -412,7 +418,7 @@ const openProductModal = (product = null) => {
                             <input type="number" id="p-alt" value="${product?.altura_cm || ''}" step="0.1" required>
                         </div>
                     </div>
-                               <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
                         <label style="font-size: 0.875rem; font-weight: 600; color: var(--accent); margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
                             <i data-lucide="package-check" style="width: 16px;"></i> Informe Dimensional da Carga (Palete)
                         </label>
@@ -526,7 +532,6 @@ const openProductModal = (product = null) => {
         const calcs = updateCalcs();
         const newProduct = {
             id: product?.id,
-            ativo: document.getElementById('p-ativo').checked,
             codigo: document.getElementById('p-codigo').value,
             descricao: document.getElementById('p-descricao').value,
             cliente: document.getElementById('p-cliente').value,
@@ -755,7 +760,7 @@ const tabs = {
                         <input type="file" id="import-file" style="display: none;" accept=".xlsx, .xls">
                         ${state.can('import_data') ? `<button class="btn btn-secondary" id="import-trigger"><i data-lucide="upload"></i> Importar</button>` : ''}
                         <button class="btn btn-secondary" id="export-trigger"><i data-lucide="download"></i> Exportar</button>
-                        <button class="btn btn-primary" id="add-product"><i data-lucide="plus"></i> Novo Produto</button>
+                        ${state.can('add_product') ? `<button class="btn btn-primary" id="add-product"><i data-lucide="plus"></i> Novo Produto</button>` : ''}
                     </div>
                 </div>
                 <div class="card">
@@ -767,7 +772,9 @@ const tabs = {
             </div>
         `;
         renderProductList();
-        document.getElementById('add-product').onclick = () => openProductModal();
+        if (document.getElementById('add-product')) {
+            document.getElementById('add-product').onclick = () => openProductModal();
+        }
         document.getElementById('search-products').oninput = (e) => renderProductList(e.target.value);
         document.getElementById('import-inactivation-file').onchange = (e) => {
             if (e.target.files.length > 0) importInactivationList(e.target.files[0]);
@@ -828,7 +835,7 @@ const tabs = {
                         <td>${CR_CALC.formatValue(volTotal, 6)}</td>
                         <td>${CR_CALC.formatValue(pesoBruto, 2)}</td>
                         <td>${CR_CALC.formatValue(pesoCubado, 2)}</td>
-                        <td><button class="remove-sim-item btn btn-secondary" data-idx="${index}" style="color: var(--danger);"><i data-lucide="trash-2"></i></button></td>
+                        <td>${!state.isVisitante() ? `<button class="remove-sim-item btn btn-secondary" data-idx="${index}" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>` : ''}</td>
                     </tr>
                 `;
             });
@@ -1340,15 +1347,15 @@ const tabs = {
                     <div style="margin-bottom: 2rem;"><h2>Parâmetros Globais</h2><p style="color: var(--text-secondary);">Configure as constantes do sistema.</p></div>
                     <div class="card" style="max-width: 600px;">
                         <div class="card-body">
-                            <form id="params-form">
-                                <div class="form-group"><label>Fator de Cubagem Padrão (kg/m³)</label><input type="number" id="fator_kg_m3" class="form-control" value="${state.parameters.fator_kg_m3}" required></div>
+                            <form id="params-form-gestao">
+                                <div class="form-group"><label>Fator de Cubagem Padrão (kg/m³)</label><input type="number" id="fator_kg_m3_gestao" class="form-control" value="${state.parameters.fator_kg_m3}" required></div>
                                 <div class="grid-2">
-                                    <div class="form-group"><label>Decimais m³</label><input type="number" id="decimais_volume" class="form-control" value="${state.parameters.decimais_volume}" min="0" max="10" required></div>
-                                    <div class="form-group"><label>Decimais Peso</label><input type="number" id="decimais_peso" class="form-control" value="${state.parameters.decimais_peso}" min="0" max="10" required></div>
+                                    <div class="form-group"><label>Decimais m³</label><input type="number" id="decimais_volume_gestao" class="form-control" value="${state.parameters.decimais_volume}" min="0" max="10" required></div>
+                                    <div class="form-group"><label>Decimais Peso</label><input type="number" id="decimais_peso_gestao" class="form-control" value="${state.parameters.decimais_peso}" min="0" max="10" required></div>
                                 </div>
                                 <div class="form-group">
                                     <label>Tolerância de Paletização (%)</label>
-                                    <input type="number" id="tolerancia_paletizacao" class="form-control" value="${state.parameters.tolerancia_paletizacao || 5}" min="0" max="100" step="0.1" required>
+                                    <input type="number" id="tolerancia_paletizacao_gestao" class="form-control" value="${state.parameters.tolerancia_paletizacao || 5}" min="0" max="100" step="0.1" required>
                                     <small style="color:var(--text-secondary);">Define o limite aceitável de variação entre o m³ unitário do palete e o volume nominal.</small>
                                 </div>
                                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;"><i data-lucide="save"></i> Salvar Configurações</button>
@@ -1573,15 +1580,15 @@ const tabs = {
         });
 
         // Setup Params Submission
-        const paramsForm = document.getElementById('params-form');
+        const paramsForm = document.getElementById('params-form-gestao');
         if (paramsForm) {
             paramsForm.onsubmit = (e) => {
                 e.preventDefault();
                 state.saveParameters({ 
-                    fator_kg_m3: parseFloat(document.getElementById('fator_kg_m3').value), 
-                    decimais_volume: parseInt(document.getElementById('decimais_volume').value), 
-                    decimais_peso: parseInt(document.getElementById('decimais_peso').value),
-                    tolerancia_paletizacao: parseFloat(document.getElementById('tolerancia_paletizacao').value)
+                    fator_kg_m3: parseFloat(document.getElementById('fator_kg_m3_gestao').value), 
+                    decimais_volume: parseInt(document.getElementById('decimais_volume_gestao').value), 
+                    decimais_peso: parseInt(document.getElementById('decimais_peso_gestao').value),
+                    tolerancia_paletizacao: parseFloat(document.getElementById('tolerancia_paletizacao_gestao').value)
                 });
                 renderToast('Parâmetros salvos com sucesso!');
             };
@@ -1816,7 +1823,10 @@ const renderUserModal = (user = null) => {
                                 <input type="checkbox" class="u-role" value="supervisor" ${user?.roles.includes('supervisor') ? 'checked' : ''}> Supervisor
                             </label>
                             <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
-                                <input type="checkbox" class="u-role" value="operador" ${user?.roles.includes('operador') || !isEdit ? 'checked' : ''}> Operador
+                                <input type="checkbox" class="u-role" value="operador" ${user?.roles.includes('operador') || (!isEdit && !user) ? 'checked' : ''}> Operador
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+                                <input type="checkbox" class="u-role" value="visitante" ${user?.roles.includes('visitante') ? 'checked' : ''}> Visitante
                             </label>
                         </div>
                     </div>
@@ -1931,6 +1941,7 @@ const initApp = (activeTabId) => {
                 </button>
                 <button id="logout-btn" class="btn btn-sidebar btn-logout" title="Sair">
                     <i data-lucide="log-out"></i> Sair do Sistema
+                </button>
             </div>
             <div style="text-align: center; margin-top: 1rem; font-size: 0.65rem; color: var(--text-muted); opacity: 0.6; width: 100%;">
                 Versão: Beta
@@ -2045,7 +2056,7 @@ window.onload = () => {
     try {
         if (window.FirebaseDB) {
             FirebaseDB.listen(() => {
-                console.log('Dados LogCub atualizados pela nuvem.');
+                console.log('Dados LogCub updated pela nuvem.');
                 // Re-hydrate state from synced localStorage
                 state.products = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRODUCTS) || '[]');
                 state.parameters = JSON.parse(localStorage.getItem(STORAGE_KEYS.PARAMETERS) || JSON.stringify(DEFAULT_PARAMETERS));
