@@ -2040,13 +2040,12 @@ const renderChangePasswordModal = () => {
     lucide.createIcons();
 };
 
-window.onload = async () => {
+window.onload = () => {
     // --- Sincronização Inicial da Nuvem ---
     try {
         if (window.FirebaseDB) {
-            const cloudData = await FirebaseDB.syncLoad();
-            if (cloudData) {
-                console.log('Dados LogCub sincronizados com a nuvem com sucesso.');
+            FirebaseDB.listen(() => {
+                console.log('Dados LogCub atualizados pela nuvem.');
                 // Re-hydrate state from synced localStorage
                 state.products = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRODUCTS) || '[]');
                 state.parameters = JSON.parse(localStorage.getItem(STORAGE_KEYS.PARAMETERS) || JSON.stringify(DEFAULT_PARAMETERS));
@@ -2055,10 +2054,19 @@ window.onload = async () => {
                 
                 // Relink Branding
                 state.updateBranding();
-            }
+                
+                // Triggers re-render if user is already logged in
+                if (state.currentUser) {
+                    const activeTabLink = document.querySelector('.sidebar a.active');
+                    if (activeTabLink) {
+                        const viewId = activeTabLink.getAttribute('onclick').match(/'([^']+)'/)[1];
+                        switchView(viewId);
+                    }
+                }
+            });
         }
     } catch (e) {
-        console.warn('Modo Offline ativado ou erro na nuvem. Usando cache local.', e);
+        console.warn('Erro ao inicializar Firebase Sync.', e);
     }
     
     initApp();
