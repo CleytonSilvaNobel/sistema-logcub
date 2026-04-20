@@ -63,6 +63,8 @@ const FirebaseDB = {
     syncSave: () => {
         if (!isFirebaseInitialized) return;
         
+        console.log('Firebase (LogCub): Iniciando sincronização...');
+        
         const latestLocalData = {
             products: localStorage.getItem('cr_products'),
             parameters: localStorage.getItem('cr_parameters'),
@@ -74,7 +76,11 @@ const FirebaseDB = {
         dbRef.transaction((currentCloudData) => {
             return latestLocalData;
         }, (error, committed) => {
-            if (error) console.error('Erro na gravação transacional:', error);
+            if (error) {
+                console.error('Firebase (LogCub): Erro na gravação transacional:', error);
+            } else if (committed) {
+                console.log('Firebase (LogCub): Dados sincronizados com sucesso.');
+            }
         });
     }
 };
