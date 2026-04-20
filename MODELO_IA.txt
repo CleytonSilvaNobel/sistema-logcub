@@ -1,0 +1,9 @@
+Esta aplicação utiliza a API do Google Gemini para funcionar como assistente inteligente em cubagem e paletização.
+A chave de API é armazenada localmente no navegador do usuário (localStorage).
+
+A IA tem acesso ao contexto de:
+1. Lista de produtos (Cubagem, Peso, Dimensões de Paletização).
+2. Base histórica de movimentações/simulações.
+3. Parâmetros de tolerância e densidade configurados.
+
+O assistente foi treinado para sugerir revisões físicas em produtos com baixa densidade e ajudar na otimização da ocupação de caixas e paletes.
