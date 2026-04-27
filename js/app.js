@@ -1892,10 +1892,23 @@ const renderUserModal = (user = null) => {
                 .catch(error => {
                     secondaryApp.delete();
                     console.error(error);
-                    let msg = 'Erro ao criar conta no Firebase.';
-                    if(error.code === 'auth/email-already-in-use') msg = 'Este e-mail já está em uso no Google.';
-                    else if(error.code === 'auth/invalid-email') msg = 'Formato de e-mail inválido.';
-                    renderToast(msg, 'error');
+                    if(error.code === 'auth/email-already-in-use') {
+                        state.users.push({
+                            id: crypto.randomUUID(),
+                            name: document.getElementById('u-name').value,
+                            username: username,
+                            password: 'Protegida (Firebase)',
+                            roles: selectedRoles
+                        });
+                        state.persist(STORAGE_KEYS.USERS, state.users);
+                        close();
+                        tabs.gestao();
+                        renderToast('Usuário já existe no Google. Permissões vinculadas a este sistema com sucesso!', 'success');
+                    } else {
+                        let msg = 'Erro ao criar conta no Firebase.';
+                        if(error.code === 'auth/invalid-email') msg = 'Formato de e-mail inválido.';
+                        renderToast(msg, 'error');
+                    }
                 });
         }
     };
