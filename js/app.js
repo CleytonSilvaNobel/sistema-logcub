@@ -129,6 +129,9 @@ const state = {
         document.body.className = `${this.theme}-theme`;
         this.notify();
     },
+    isVisitante() {
+        return this.currentUser && this.currentUser.roles.includes('visitante');
+    },
     currentUser: JSON.parse(sessionStorage.getItem(STORAGE_KEYS.SESSION) || localStorage.getItem(STORAGE_KEYS.SESSION) || 'null'),
     listeners: [],
     subscribe(callback) { this.listeners.push(callback); },
@@ -817,12 +820,16 @@ const tabs = {
         };
         document.getElementById('export-trigger').onclick = exportToExcel;
         if (state.can('import_data')) {
-            document.getElementById('import-trigger').onclick = () => {
-                const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls';
-                input.onchange = (e) => importFromExcel(e.target.files[0]); input.click();
-            };
+            const importBtn = document.getElementById('import-trigger');
+            if (importBtn) {
+                importBtn.onclick = () => {
+                    const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx, .xls';
+                    input.onchange = (e) => importFromExcel(e.target.files[0]); input.click();
+                };
+            }
+            const helpBtn = document.getElementById('open-help');
+            if (helpBtn) helpBtn.onclick = openImportHelpModal;
         }
-        document.getElementById('open-help').onclick = openImportHelpModal;
         lucide.createIcons();
     },
     simulacao: () => {
