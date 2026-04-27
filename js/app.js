@@ -1969,7 +1969,10 @@ const renderLogin = () => {
         btn.disabled = true;
         err.style.display = 'none';
 
-        firebase.auth().signInWithEmailAndPassword(u, p)
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+            .then(() => {
+                return firebase.auth().signInWithEmailAndPassword(u, p);
+            })
             .then(() => {
                 // onAuthStateChanged no initApp cuidará do redirecionamento
             })
