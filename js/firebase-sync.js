@@ -1,6 +1,6 @@
 /**
  * Firebase Sync Controller for LogCub
- * This script initializes Firebase and provides an async bridge to sync with LocalStorage
+ * Proteção Avançada contra Perda de Dados
  */
 
 const firebaseConfig = {
@@ -16,6 +16,7 @@ const firebaseConfig = {
 
 let dbRef = null;
 let isFirebaseInitialized = false;
+let isDataLoaded = false; // Trava de segurança: impede salvar antes de carregar
 
 const FirebaseDB = {
     init: () => {
@@ -23,19 +24,19 @@ const FirebaseDB = {
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
             }
-            // Use Realtime Database connection
             dbRef = firebase.database().ref('logcub_db'); 
             isFirebaseInitialized = true;
             console.log('Firebase Cloud Database Conectado (LogCub).');
         } catch (error) {
-            console.error('Falha ao inicializar o Firebase. Verifique suas chaves.', error);
+            console.error('Falha ao inicializar o Firebase:', error);
         }
     },
 
-    // Carregamento único da nuvem (chamado ANTES do Auth para garantir dados atualizados)
+    // Carregamento inicial obrigatório
     syncLoad: async () => {
         if (!isFirebaseInitialized) return null;
         try {
+            console.log('Firebase (LogCub): Sincronizando entrada...');
             const snapshot = await dbRef.once('value');
             if (snapshot.exists()) {
                 const cloudData = snapshot.val();
@@ -43,50 +44,57 @@ const FirebaseDB = {
                 if (cloudData.parameters) localStorage.setItem('cr_parameters', cloudData.parameters);
                 if (cloudData.simulations) localStorage.setItem('cr_simulations', cloudData.simulations);
                 if (cloudData.users) localStorage.setItem('cr_users', cloudData.users);
-                console.log('Firebase: Dados carregados da nuvem com sucesso (LogCub syncLoad).');
+                
+                isDataLoaded = true; 
+                console.log('Firebase (LogCub): Dados carregados. Sincronização de saída liberada.');
                 return cloudData;
             } else {
-                console.log('Firebase: Nuvem vazia, usando dados locais.');
+                isDataLoaded = true; // Nuvem vazia é um estado válido
+                console.log('Firebase (LogCub): Nuvem vazia. Pronto para novos dados.');
                 return null;
             }
         } catch (error) {
-            console.error('Firebase: Erro ao carregar dados da nuvem:', error);
+            console.error('Firebase (LogCub): Erro no syncLoad:', error);
             return null;
         }
     },
 
-    // Escuta constante da nuvem, injetando dados na tela em tempo real
+    // Monitoramento em tempo real
     listen: (onUpdateCallback) => {
         if (!isFirebaseInitialized) return;
         
         dbRef.on('value', (snapshot) => {
             if (snapshot.exists()) {
                 const cloudData = snapshot.val();
+                const localProds = localStorage.getItem('cr_products');
                 
-                const localStr = JSON.stringify({
-                    products: localStorage.getItem('cr_products'),
-                    parameters: localStorage.getItem('cr_parameters'),
-                    simulations: localStorage.getItem('cr_simulations'),
-                    users: localStorage.getItem('cr_users')
-                });
-                
-                if (localStr !== JSON.stringify(cloudData)) {
-                    console.log('Firebase: Nova atualização recebida da nuvem.');
+                // Só atualiza se houver mudança real e não for um downgrade de dados
+                if (JSON.stringify(cloudData.products) !== JSON.stringify(localProds)) {
+                    console.log('Firebase (LogCub): Atualização recebida da nuvem.');
                     if (cloudData.products) localStorage.setItem('cr_products', cloudData.products);
                     if (cloudData.parameters) localStorage.setItem('cr_parameters', cloudData.parameters);
                     if (cloudData.simulations) localStorage.setItem('cr_simulations', cloudData.simulations);
                     if (cloudData.users) localStorage.setItem('cr_users', cloudData.users);
+                    
+                    isDataLoaded = true;
                     if (onUpdateCallback) onUpdateCallback();
                 }
+            } else {
+                isDataLoaded = true;
             }
         });
     },
 
-    // Empurra a versão do LocalStorage para a Nuvem com Transação Anti-Concorrência
+    // Gravação segura na nuvem
     syncSave: (isManualWipe = false) => {
         if (!isFirebaseInitialized) return;
         
-        console.log('Firebase (LogCub): Iniciando sincronização...');
+        // SEGURANÇA: Nunca salva se a flag isDataLoaded for falsa
+        // Isso impede que um dispositivo recém-logado apague a nuvem antes de carregar os dados dela
+        if (!isDataLoaded && !isManualWipe) {
+            console.warn('Firebase (LogCub): syncSave BLOQUEADO. Aguardando carregamento inicial para evitar perda de dados.');
+            return;
+        }
         
         const latestLocalData = {
             products: localStorage.getItem('cr_products'),
@@ -95,39 +103,43 @@ const FirebaseDB = {
             users: localStorage.getItem('cr_users')
         };
         
-        // Transação para evitar concorrência (Race Condition) no exato milissegundo
         dbRef.transaction((currentCloudData) => {
-            // ANTI-WIPE SAFETY: Impede que um dispositivo novo/vazio zere a nuvem
             if (currentCloudData && !isManualWipe) {
                 let cloudProdsCount = 0;
                 let localProdsCount = 0;
                 
                 try {
-                    if (currentCloudData.products) cloudProdsCount = JSON.parse(currentCloudData.products).length || 0;
-                    if (latestLocalData.products) localProdsCount = JSON.parse(latestLocalData.products).length || 0;
-                } catch(e) {}
+                    if (currentCloudData.products) {
+                        const p = JSON.parse(currentCloudData.products);
+                        cloudProdsCount = Array.isArray(p) ? p.length : 0;
+                    }
+                    if (latestLocalData.products) {
+                        const p = JSON.parse(latestLocalData.products);
+                        localProdsCount = Array.isArray(p) ? p.length : 0;
+                    }
+                } catch(e) { console.error('Erro no parser da transação:', e); }
 
+                // TRAVA DE SEGURANÇA REFORÇADA:
+                // Se a nuvem tem dados e o local está vindo vazio ou com perda massiva, aborta o salvamento automático.
                 if (cloudProdsCount > 0 && localProdsCount === 0) {
-                    console.warn('SAFETY LOCK (LogCub): Tentativa de sobrescrever nuvem com dados vazios bloqueada.');
-                    latestLocalData.products = currentCloudData.products;
+                    console.warn('SAFETY LOCK (LogCub): Bloqueada tentativa de apagar produtos da nuvem.');
+                    return; // Aborta a transação
+                }
+                
+                if (cloudProdsCount > (localProdsCount + 10) && localProdsCount > 0) {
+                    console.warn(`SAFETY LOCK (LogCub): Nuvem tem ${cloudProdsCount} itens e Local tem apenas ${localProdsCount}. Possível perda de dados detectada. Abortando syncSave.`);
+                    return; // Aborta a transação
                 }
             }
 
             return latestLocalData;
-        }, (error, committed, snapshot) => {
-            if (error) {
-                console.error('Firebase (LogCub): Erro na gravação transacional:', error);
-            } else if (!committed) {
-                console.log('Firebase (LogCub): Gravação abortada (Trava de Segurança Anti-Wipe acionada).');
-            } else {
-                console.log('Firebase (LogCub): Dados sincronizados com sucesso.');
-            }
+        }, (error, committed) => {
+            if (error) console.error('Firebase (LogCub) Erro no Sync:', error);
+            else if (!committed) console.log('Firebase (LogCub) Sync Protegido contra Perda.');
+            else console.log('Firebase (LogCub) Cloud Sincronizada.');
         });
     }
 };
 
-// Initialize as soon as script is parsed
 FirebaseDB.init();
-
-// Expor para o escopo global para que o App.js consiga enxergar
 window.FirebaseDB = FirebaseDB;
