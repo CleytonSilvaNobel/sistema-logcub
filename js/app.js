@@ -609,6 +609,15 @@ const importFromExcel = (file) => {
             return code && existingCodes.has(code);
         });
 
+        const parseExcelNumber = (val) => {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return val;
+            // Se for string, remove espaços e troca vírgula por ponto
+            const clean = String(val).replace(/\s/g, '').replace(',', '.');
+            const num = parseFloat(clean);
+            return isNaN(num) ? 0 : num;
+        };
+
         const processImport = (overwrite) => {
             let count = 0; let errors = 0;
             rows.forEach(row => {
@@ -618,11 +627,18 @@ const importFromExcel = (file) => {
                 const exists = existingCodes.has(codigo);
                 if (exists && !overwrite) return; // Skip if user chose not to overwrite
                 
-                const pesos = [row['peso1_kg'] || row['Peso 1'], row['peso2_kg'] || row['Peso 2'], row['peso3_kg'] || row['Peso 3'], row['peso4_kg'] || row['Peso 4'], row['peso5_kg'] || row['Peso 5']];
+                const pesos = [
+                    row['peso1_kg'] || row['Peso 1'], 
+                    row['peso2_kg'] || row['Peso 2'], 
+                    row['peso3_kg'] || row['Peso 3'], 
+                    row['peso4_kg'] || row['Peso 4'], 
+                    row['peso5_kg'] || row['Peso 5']
+                ].map(p => parseExcelNumber(p));
+
                 const statusParsed = String(row['Status'] || row['status'] || 'Ativo').toLowerCase() === 'inativo' ? false : true;
-                const comp = parseFloat(row['Comprimento (cm)'] || row['Comprimento'] || 0);
-                const larg = parseFloat(row['Largura (cm)'] || row['Largura'] || 0);
-                const alt = parseFloat(row['Altura (cm)'] || row['Altura'] || 0);
+                const comp = parseExcelNumber(row['Comprimento (cm)'] || row['Comprimento'] || 0);
+                const larg = parseExcelNumber(row['Largura (cm)'] || row['Largura'] || 0);
+                const alt = parseExcelNumber(row['Altura (cm)'] || row['Altura'] || 0);
                 
                 if (comp <= 0 || larg <= 0 || alt <= 0) { errors++; return; }
                 
@@ -632,10 +648,10 @@ const importFromExcel = (file) => {
                     cliente: row['Cliente'] || row['Cliente'] || '',
                     ativo: statusParsed,
                     comprimento_cm: comp, largura_cm: larg, altura_cm: alt,
-                    pallet_comprimento: parseFloat(row['Comp. Palete (cm)'] || row['pallet_comprimento'] || 0) || null,
-                    pallet_largura: parseFloat(row['Larg. Palete (cm)'] || row['pallet_largura'] || 0) || null,
-                    pallet_altura: parseFloat(row['Alt. Palete (cm)'] || row['pallet_altura'] || 0) || null,
-                    pallet_qtd_pacotes: parseFloat(row['Qtd. Pacotes no Palete'] || row['pallet_qtd_pacotes'] || 0) || null,
+                    pallet_comprimento: parseExcelNumber(row['Comp. Palete (cm)'] || row['pallet_comprimento'] || 0) || null,
+                    pallet_largura: parseExcelNumber(row['Larg. Palete (cm)'] || row['pallet_largura'] || 0) || null,
+                    pallet_altura: parseExcelNumber(row['Alt. Palete (cm)'] || row['pallet_altura'] || 0) || null,
+                    pallet_qtd_pacotes: parseExcelNumber(row['Qtd. Pacotes no Palete'] || row['pallet_qtd_pacotes'] || 0) || null,
                     peso1_kg: pesos[0] || null, peso2_kg: pesos[1] || null, peso3_kg: pesos[2] || null, peso4_kg: pesos[3] || null, peso5_kg: pesos[4] || null,
                     peso_medio_calc: CR_CALC.calcPesoMedio(pesos), volume_m3_calc: CR_CALC.calcVolumeM3(comp, larg, alt)
                 });
@@ -1916,7 +1932,17 @@ const renderUserModal = (user = null) => {
 };
 
 const renderLogin = () => {
-    document.body.innerHTML = `
+    // Esconde a aplicação principal ao invés de destruí-la
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.style.display = 'none';
+
+    // Remove login overlay anterior se existir
+    const existing = document.getElementById('logcub-login-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'logcub-login-overlay';
+    overlay.innerHTML = `
         <div class="login-screen">
             <div class="login-card fade-in">
                 <div class="logo" style="justify-content: center; margin-bottom: 2rem;">
@@ -1944,7 +1970,8 @@ const renderLogin = () => {
             </div>
         </div>
     `;
-    
+    document.body.appendChild(overlay);
+
     document.getElementById('forgot-password').onclick = (e) => {
         e.preventDefault();
         const login = document.getElementById('login-username').value.trim();
@@ -2060,6 +2087,12 @@ const initApp = (activeTabId) => {
 };
 
 const setupApplication = (activeTabId) => {
+    // Remove o overlay de login e restaura a visibilidade do app
+    const loginOverlay = document.getElementById('logcub-login-overlay');
+    if (loginOverlay) loginOverlay.remove();
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.style.display = '';
+
     // Setup Sidebar User Area
     const userArea = document.getElementById('user-area');
     userArea.innerHTML = `
