@@ -462,9 +462,15 @@ const openProductModal = (product = null) => {
                         <div class="calc-item"><label>Densidade:</label><span id="calc-dens">-</span></div>
                         <div class="calc-item"><label>Peso Cubado:</label><span id="calc-cubado">-</span></div>
                     </div>
+
+                    <div class="form-group" style="margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="p-ativo" ${product?.ativo !== false ? 'checked' : ''} style="width: auto;">
+                        <label for="p-ativo" style="margin: 0;">Produto Ativo para Cubagem</label>
+                    </div>
+
                     <div style="margin-top: 2rem; display: flex; gap: 1rem;">
                         <button type="button" class="btn btn-secondary" id="cancel-modal" style="flex: 1; justify-content: center;">Cancelar</button>
-                        <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">Salvar Produto</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-product" style="flex: 1; justify-content: center;">Salvar Produto</button>
                     </div>
                 </form>
             </div>
@@ -534,6 +540,14 @@ const openProductModal = (product = null) => {
     document.getElementById('cancel-modal').onclick = close;
     form.onsubmit = (e) => {
         e.preventDefault();
+        
+        const btnSave = document.getElementById('btn-save-product');
+        if (btnSave) {
+            btnSave.disabled = true;
+            btnSave.innerHTML = '<i data-lucide="loader" class="spin"></i> Salvando...';
+            if (window.lucide) window.lucide.createIcons();
+        }
+
         const calcs = updateCalcs();
         const newProduct = {
             id: product?.id,
