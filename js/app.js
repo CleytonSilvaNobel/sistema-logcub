@@ -1995,9 +1995,23 @@ const initApp = (activeTabId) => {
                 if (localUser) {
                     state.currentUser = localUser;
                     setupApplication(activeTabId);
+                } else if (user.email.toLowerCase() === 'cleyton.silva@nobelpack.com.br' || user.email.toLowerCase() === 'admin@nobelpack.com.br') {
+                    // Auto-criação de perfil de administrador para evitar lockout
+                    const newAdm = {
+                        id: crypto.randomUUID(),
+                        name: 'Cleyton Silva (ADM)',
+                        username: user.email.toLowerCase(),
+                        password: 'Protegida (Firebase)',
+                        roles: ['adm', 'Administrador', 'Supervisor', 'Operador']
+                    };
+                    state.users.push(newAdm);
+                    state.persist('LogCub_Users', state.users);
+                    state.currentUser = newAdm;
+                    setupApplication(activeTabId);
+                    alert('Perfil de Administrador vinculado com sucesso!');
                 } else {
                     firebase.auth().signOut();
-                    alert('Usuário logado no Google não possui cadastro no LogCub.');
+                    alert('Usuário logado no Google não possui cadastro interno de permissões no LogCub.');
                     state.currentUser = null;
                     renderLogin();
                 }
