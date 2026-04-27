@@ -2059,11 +2059,22 @@ const initApp = (activeTabId) => {
                 if (typeof FirebaseDB !== 'undefined' && FirebaseDB.syncLoad) {
                     try {
                         await FirebaseDB.syncLoad();
-                        // Recarregar state.users do localStorage atualizado
-                        const stored = localStorage.getItem(STORAGE_KEYS.USERS);
-                        if (stored) {
-                            try { state.users = JSON.parse(stored); } catch(e) {}
-                        }
+                        // PASSO CRÍTICO: Recarregar TODO o estado do localStorage atualizado pela nuvem
+                        try {
+                            const pStored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+                            if (pStored) state.products = JSON.parse(pStored);
+                            
+                            const uStored = localStorage.getItem(STORAGE_KEYS.USERS);
+                            if (uStored) state.users = JSON.parse(uStored);
+                            
+                            const prStored = localStorage.getItem(STORAGE_KEYS.PARAMETERS);
+                            if (prStored) state.parameters = JSON.parse(prStored);
+                            
+                            const sStored = localStorage.getItem(STORAGE_KEYS.SIMULATIONS);
+                            if (sStored) state.simulations = JSON.parse(sStored);
+                            
+                            state.updateBranding();
+                        } catch(e) { console.error('Erro ao hidratar estado pós-sync:', e); }
                     } catch (e) {
                         console.warn('Falha ao sincronizar dados da nuvem antes do login:', e);
                     }
