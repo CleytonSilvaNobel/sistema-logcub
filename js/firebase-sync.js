@@ -32,6 +32,29 @@ const FirebaseDB = {
         }
     },
 
+    // Carregamento único da nuvem (chamado ANTES do Auth para garantir dados atualizados)
+    syncLoad: async () => {
+        if (!isFirebaseInitialized) return null;
+        try {
+            const snapshot = await dbRef.once('value');
+            if (snapshot.exists()) {
+                const cloudData = snapshot.val();
+                if (cloudData.products) localStorage.setItem('cr_products', cloudData.products);
+                if (cloudData.parameters) localStorage.setItem('cr_parameters', cloudData.parameters);
+                if (cloudData.simulations) localStorage.setItem('cr_simulations', cloudData.simulations);
+                if (cloudData.users) localStorage.setItem('cr_users', cloudData.users);
+                console.log('Firebase: Dados carregados da nuvem com sucesso (LogCub syncLoad).');
+                return cloudData;
+            } else {
+                console.log('Firebase: Nuvem vazia, usando dados locais.');
+                return null;
+            }
+        } catch (error) {
+            console.error('Firebase: Erro ao carregar dados da nuvem:', error);
+            return null;
+        }
+    },
+
     // Escuta constante da nuvem, injetando dados na tela em tempo real
     listen: (onUpdateCallback) => {
         if (!isFirebaseInitialized) return;
@@ -86,7 +109,7 @@ const FirebaseDB = {
 
                 if (cloudProdsCount > 0 && localProdsCount === 0) {
                     console.warn('SAFETY LOCK (LogCub): Tentativa de sobrescrever nuvem com dados vazios bloqueada.');
-                    return; // Aborta transação
+                    latestLocalData.products = currentCloudData.products;
                 }
             }
 

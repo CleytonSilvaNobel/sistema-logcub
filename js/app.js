@@ -2005,9 +2005,23 @@ const renderLogin = () => {
 const initApp = (activeTabId) => {
     // A inicialização agora depende do Firebase Auth
     if (typeof firebase !== 'undefined') {
-        firebase.auth().onAuthStateChanged((user) => {
+        firebase.auth().onAuthStateChanged(async (user) => {
             if (user) {
-                const localUser = state.users.find(u => u.username.toLowerCase() === user.email.toLowerCase());
+                // PASSO CRÍTICO: Puxar dados da nuvem ANTES de verificar permissões
+                if (typeof FirebaseDB !== 'undefined' && FirebaseDB.syncLoad) {
+                    try {
+                        await FirebaseDB.syncLoad();
+                        // Recarregar state.users do localStorage atualizado
+                        const stored = localStorage.getItem(STORAGE_KEYS.USERS);
+                        if (stored) {
+                            try { state.users = JSON.parse(stored); } catch(e) {}
+                        }
+                    } catch (e) {
+                        console.warn('Falha ao sincronizar dados da nuvem antes do login:', e);
+                    }
+                }
+
+                const localUser = state.users.find(u => u.username && u.username.toLowerCase() === user.email.toLowerCase());
                 if (localUser) {
                     state.currentUser = localUser;
                     setupApplication(activeTabId);
