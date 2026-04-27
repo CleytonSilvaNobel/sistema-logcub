@@ -60,7 +60,7 @@ const FirebaseDB = {
     },
 
     // Empurra a versão do LocalStorage para a Nuvem com Transação Anti-Concorrência
-    syncSave: () => {
+    syncSave: (isManualWipe = false) => {
         if (!isFirebaseInitialized) return;
         
         console.log('Firebase (LogCub): Iniciando sincronização...');
@@ -74,11 +74,29 @@ const FirebaseDB = {
         
         // Transação para evitar concorrência (Race Condition) no exato milissegundo
         dbRef.transaction((currentCloudData) => {
+            // ANTI-WIPE SAFETY: Impede que um dispositivo novo/vazio zere a nuvem
+            if (currentCloudData && !isManualWipe) {
+                let cloudProdsCount = 0;
+                let localProdsCount = 0;
+                
+                try {
+                    if (currentCloudData.products) cloudProdsCount = JSON.parse(currentCloudData.products).length || 0;
+                    if (latestLocalData.products) localProdsCount = JSON.parse(latestLocalData.products).length || 0;
+                } catch(e) {}
+
+                if (cloudProdsCount > 0 && localProdsCount === 0) {
+                    console.warn('SAFETY LOCK (LogCub): Tentativa de sobrescrever nuvem com dados vazios bloqueada.');
+                    return; // Aborta transação
+                }
+            }
+
             return latestLocalData;
-        }, (error, committed) => {
+        }, (error, committed, snapshot) => {
             if (error) {
                 console.error('Firebase (LogCub): Erro na gravação transacional:', error);
-            } else if (committed) {
+            } else if (!committed) {
+                console.log('Firebase (LogCub): Gravação abortada (Trava de Segurança Anti-Wipe acionada).');
+            } else {
                 console.log('Firebase (LogCub): Dados sincronizados com sucesso.');
             }
         });
