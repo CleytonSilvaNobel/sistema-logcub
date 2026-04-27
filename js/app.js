@@ -140,24 +140,21 @@ const state = {
         this.notify(); 
     },
     
-    login(username, password, remember = false) {
-        const user = this.users.find(u => u.username === username && u.password === password);
-        if (user) {
-            this.currentUser = user;
-            if (remember) {
-                localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
-            } else {
-                sessionStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
-            }
-            return true;
-        }
+    login: (username, password, remember = false) => {
+        // Função original de login substituída pelo Firebase Auth
         return false;
     },
     logout() {
-        this.currentUser = null;
-        localStorage.removeItem(STORAGE_KEYS.SESSION);
-        sessionStorage.removeItem(STORAGE_KEYS.SESSION);
-        location.reload();
+        if (typeof firebase !== 'undefined') {
+            firebase.auth().signOut().then(() => {
+                location.reload();
+            });
+        } else {
+            this.currentUser = null;
+            localStorage.removeItem(STORAGE_KEYS.SESSION);
+            sessionStorage.removeItem(STORAGE_KEYS.SESSION);
+            location.reload();
+        }
     },
     changePassword(oldPass, newPass) {
         if (this.currentUser.password !== oldPass) return { success: false, message: 'Senha atual incorreta.' };
@@ -1660,10 +1657,15 @@ const tabs = {
             document.querySelectorAll('.reset-user').forEach(btn => {
                 btn.onclick = () => {
                     const user = state.users.find(u => u.id === btn.dataset.id);
-                    if (confirm(`Deseja resetar a senha de ${user.name} para "Senha123"?`)) {
-                        user.password = 'Senha123';
-                        state.persist(STORAGE_KEYS.USERS, state.users);
-                        renderToast('Senha resetada com sucesso!');
+                    if (confirm(`Deseja enviar o e-mail de redefinição de senha do Firebase para ${user.name}?`)) {
+                        firebase.auth().sendPasswordResetEmail(user.username)
+                            .then(() => {
+                                renderToast('E-mail enviado com sucesso!');
+                            })
+                            .catch(error => {
+                                console.error(error);
+                                renderToast('Erro ao enviar e-mail. Verifique o formato.', 'error');
+                            });
                     }
                 };
             });
@@ -1813,16 +1815,9 @@ const renderUserModal = (user = null) => {
                         <input type="text" id="u-name" value="${user?.name || ''}" required>
                     </div>
                     <div class="form-group">
-                        <label>Nome de Usuário*</label>
-                        <input type="text" id="u-username" value="${user?.username || ''}" required ${isEdit ? 'disabled' : ''}>
+                        <label>E-mail (Nome de Usuário)*</label>
+                        <input type="email" id="u-username" value="${user?.username || ''}" placeholder="usuario@nobelpack.com.br" required ${isEdit ? 'disabled style="background:var(--bg-main);"' : ''}>
                     </div>
-                    ${!isEdit ? `
-                    <div class="form-group">
-                        <label>Senha*</label>
-                        <input type="password" id="u-password" value="Senha123" required>
-                        <small style="color: var(--text-secondary);">Padrão: Senha123</small>
-                    </div>
-                    ` : ''}
                     <div class="form-group">
                         <label>Grupos de Acesso*</label>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
@@ -1861,22 +1856,48 @@ const renderUserModal = (user = null) => {
         if (isEdit) {
             const index = state.users.findIndex(u => u.id === user.id);
             state.users[index] = { ...state.users[index], name: document.getElementById('u-name').value, roles: selectedRoles };
+            state.persist(STORAGE_KEYS.USERS, state.users);
+            close();
+            tabs.gestao();
+            renderToast('Usuário atualizado!');
         } else {
-            const username = document.getElementById('u-username').value;
-            if (state.users.some(u => u.username === username)) { renderToast('Este nome de usuário já existe.', 'error'); return; }
-            state.users.push({
-                id: crypto.randomUUID(),
-                name: document.getElementById('u-name').value,
-                username: username,
-                password: document.getElementById('u-password').value,
-                roles: selectedRoles
-            });
+            const username = document.getElementById('u-username').value.toLowerCase();
+            if (state.users.some(u => u.username.toLowerCase() === username)) { renderToast('Este e-mail de usuário já existe.', 'error'); return; }
+            
+            const pass = prompt('Digite uma senha inicial para o usuário no Google (Mínimo 6 caracteres):');
+            if (!pass || pass.length < 6) {
+                renderToast('Senha inválida ou muito curta.', 'error');
+                return;
+            }
+
+            const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary" + Date.now());
+            secondaryApp.auth().createUserWithEmailAndPassword(username, pass)
+                .then(() => {
+                    secondaryApp.auth().signOut();
+                    secondaryApp.delete();
+                    
+                    state.users.push({
+                        id: crypto.randomUUID(),
+                        name: document.getElementById('u-name').value,
+                        username: username,
+                        password: 'Protegida (Firebase)',
+                        roles: selectedRoles
+                    });
+                    
+                    state.persist(STORAGE_KEYS.USERS, state.users);
+                    close();
+                    tabs.gestao();
+                    renderToast('Usuário criado com sucesso no Firebase!');
+                })
+                .catch(error => {
+                    secondaryApp.delete();
+                    console.error(error);
+                    let msg = 'Erro ao criar conta no Firebase.';
+                    if(error.code === 'auth/email-already-in-use') msg = 'Este e-mail já está em uso no Google.';
+                    else if(error.code === 'auth/invalid-email') msg = 'Formato de e-mail inválido.';
+                    renderToast(msg, 'error');
+                });
         }
-        
-        state.persist(STORAGE_KEYS.USERS, state.users);
-        close();
-        tabs.gestao();
-        renderToast(isEdit ? 'Usuário atualizado!' : 'Usuário criado com sucesso!');
     };
     lucide.createIcons();
 };
@@ -1892,19 +1913,17 @@ const renderLogin = () => {
                 </div>
                 <form id="login-form">
                     <div class="form-group">
-                        <label>Usuário</label>
-                        <input type="text" id="login-username" placeholder="Digite seu usuário" required autofocus>
+                        <label>E-mail de Acesso</label>
+                        <input type="email" id="login-username" placeholder="ex: admin@nobelpack.com.br" required autofocus>
                     </div>
                     <div class="form-group">
-                        <label>Senha</label>
+                        <div style="display:flex; justify-content: space-between;">
+                            <label>Senha</label>
+                            <a href="#" id="forgot-password" style="font-size: 0.8rem; text-decoration: none; color: var(--primary);">Esqueci a senha</a>
+                        </div>
                         <input type="password" id="login-password" placeholder="Digite sua senha" required>
                     </div>
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 400; cursor: pointer;">
-                            <input type="checkbox" id="login-remember"> Permanecer conectado
-                        </label>
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; padding: 1rem;">Entrar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-login-submit" style="width: 100%; margin-top: 1.5rem; padding: 1rem;">Conectar (Google Auth)</button>
                     <div id="login-error" style="color: var(--danger); font-size: 0.875rem; text-align: center; margin-top: 1rem; display: none;">
                         Usuário ou senha incorretos.
                     </div>
@@ -1913,26 +1932,90 @@ const renderLogin = () => {
         </div>
     `;
     
+    document.getElementById('forgot-password').onclick = (e) => {
+        e.preventDefault();
+        const login = document.getElementById('login-username').value.trim();
+        const err = document.getElementById('login-error');
+        
+        if (!login) {
+            err.style.color = 'var(--danger)';
+            err.textContent = 'Preencha seu e-mail no campo acima primeiro.';
+            err.style.display = 'block';
+            return;
+        }
+
+        firebase.auth().sendPasswordResetEmail(login)
+            .then(() => {
+                err.style.color = 'var(--success)';
+                err.textContent = 'E-mail de recuperação enviado! Verifique sua caixa de entrada.';
+                err.style.display = 'block';
+            })
+            .catch((error) => {
+                err.style.color = 'var(--danger)';
+                err.textContent = 'Erro ao enviar e-mail. Verifique se o formato está correto.';
+                err.style.display = 'block';
+            });
+    };
+
     document.getElementById('login-form').onsubmit = (e) => {
         e.preventDefault();
         const u = document.getElementById('login-username').value;
         const p = document.getElementById('login-password').value;
-        const r = document.getElementById('login-remember').checked;
-        if (state.login(u, p, r)) {
-            location.reload();
-        } else {
-            document.getElementById('login-error').style.display = 'block';
-        }
+        const err = document.getElementById('login-error');
+        const btn = document.getElementById('btn-login-submit');
+
+        const originalText = btn.innerHTML;
+        btn.innerHTML = 'Verificando no Firebase...';
+        btn.disabled = true;
+        err.style.display = 'none';
+
+        firebase.auth().signInWithEmailAndPassword(u, p)
+            .then(() => {
+                // onAuthStateChanged no initApp cuidará do redirecionamento
+            })
+            .catch((error) => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                let msg = 'Erro no login.';
+                if (error.code === 'auth/invalid-credential') msg = 'E-mail ou senha incorretos.';
+                err.style.color = 'var(--danger)';
+                err.textContent = msg;
+                err.style.display = 'block';
+            });
     };
     lucide.createIcons();
 };
 
 const initApp = (activeTabId) => {
-    if (!state.currentUser) {
-        renderLogin();
-        return;
+    // A inicialização agora depende do Firebase Auth
+    if (typeof firebase !== 'undefined') {
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                const localUser = state.users.find(u => u.username.toLowerCase() === user.email.toLowerCase());
+                if (localUser) {
+                    state.currentUser = localUser;
+                    setupApplication(activeTabId);
+                } else {
+                    firebase.auth().signOut();
+                    alert('Usuário logado no Google não possui cadastro no LogCub.');
+                    state.currentUser = null;
+                    renderLogin();
+                }
+            } else {
+                state.currentUser = null;
+                renderLogin();
+            }
+        });
+    } else {
+        if (!state.currentUser) {
+            renderLogin();
+            return;
+        }
+        setupApplication(activeTabId);
     }
+};
 
+const setupApplication = (activeTabId) => {
     // Setup Sidebar User Area
     const userArea = document.getElementById('user-area');
     userArea.innerHTML = `
@@ -1959,7 +2042,18 @@ const initApp = (activeTabId) => {
     `;
 
     document.getElementById('logout-btn').onclick = () => state.logout();
-    document.getElementById('change-pass-btn').onclick = () => renderChangePasswordModal();
+    document.getElementById('change-pass-btn').onclick = () => {
+        if (confirm('Deseja receber o e-mail oficial de redefinição de senha para sua conta atual?')) {
+            firebase.auth().sendPasswordResetEmail(state.currentUser.username)
+                .then(() => {
+                    renderToast('Verifique sua caixa de entrada para alterar a senha.', 'success');
+                })
+                .catch(error => {
+                    console.error(error);
+                    renderToast('Erro ao enviar o e-mail de redefinição.', 'error');
+                });
+        }
+    };
     document.getElementById('theme-toggle-btn').onclick = () => {
         const activeTabBtn = document.querySelector('.nav-btn.active');
         const activeTabId = activeTabBtn ? activeTabBtn.dataset.tab : 'cadastros';
@@ -2003,62 +2097,7 @@ const initApp = (activeTabId) => {
     lucide.createIcons();
 };
 
-const renderChangePasswordModal = () => {
-    const container = document.getElementById('modal-container');
-    container.innerHTML = `
-        <div class="modal-overlay">
-            <div class="modal fade-in" style="max-width: 400px;">
-                <div class="modal-header">
-                    <h3>Alterar Senha</h3>
-                    <button class="modal-close" id="close-pass-modal"><i data-lucide="x"></i></button>
-                </div>
-                <form id="change-pass-form">
-                    <div class="form-group">
-                        <label>Senha Atual</label>
-                        <input type="password" id="old-pass" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Nova Senha</label>
-                        <input type="password" id="new-pass" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Confirmar Nova Senha</label>
-                        <input type="password" id="confirm-pass" required>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" id="cancel-pass-modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Salvar Nova Senha</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
-    
-    const close = () => container.innerHTML = '';
-    document.getElementById('close-pass-modal').onclick = close;
-    document.getElementById('cancel-pass-modal').onclick = close;
-    
-    document.getElementById('change-pass-form').onsubmit = (e) => {
-        e.preventDefault();
-        const oldP = document.getElementById('old-pass').value;
-        const newP = document.getElementById('new-pass').value;
-        const confirmP = document.getElementById('confirm-pass').value;
-        
-        if (newP !== confirmP) {
-            renderToast('As novas senhas não coincidem.', 'error');
-            return;
-        }
-        
-        const result = state.changePassword(oldP, newP);
-        if (result.success) {
-            renderToast('Senha alterada com sucesso!');
-            close();
-        } else {
-            renderToast(result.message, 'error');
-        }
-    };
-    lucide.createIcons();
-};
+// Modal de troca de senha removido na migração para o Firebase Auth
 
 window.onload = () => {
     // --- Sincronização Inicial da Nuvem ---
