@@ -1966,10 +1966,10 @@ const renderLogin = () => {
     overlay.innerHTML = `
         <div class="login-screen">
             <div class="login-card fade-in">
-                <div class="logo" style="justify-content: center; margin-bottom: 2rem;">
-                    <i data-lucide="truck" style="width: 48px; height: 48px;"></i>
-                    <h1 style="font-size: 2.5rem;">LogCub</h1>
-                    <span class="brand-nobel" style="font-size: 1.5rem;">NobelPack</span>
+                <div class="logo">
+                    <i data-lucide="truck"></i>
+                    <h1>LogCub</h1>
+                    <span class="brand-nobel">NOBELPACK</span>
                 </div>
                 <form id="login-form">
                     <div class="form-group">

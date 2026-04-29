@@ -317,7 +317,7 @@ tr:hover td {
 }
 
 .login-card {
-    background: rgba(30, 41, 59, 0.7);
+    background: rgba(30, 41, 59, 0.7) !important;
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 3rem;
@@ -325,6 +325,36 @@ tr:hover td {
     width: 100%;
     max-width: 450px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.login-card .logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+}
+
+.login-card .logo i {
+    color: var(--accent);
+    width: 48px !important;
+    height: 48px !important;
+}
+
+.login-card .logo h1 {
+    color: white;
+    font-size: 2.5rem;
+    margin: 0;
+}
+
+.login-card .logo .brand-nobel {
+    color: var(--accent);
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0;
 }
 
 .user-controls {
