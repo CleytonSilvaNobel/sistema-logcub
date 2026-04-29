@@ -1974,7 +1974,7 @@ const renderLogin = () => {
                 <form id="login-form">
                     <div class="form-group">
                         <label>E-mail de Acesso</label>
-                        <input type="email" id="login-username" placeholder="ex: admin@nobelpack.com.br" required autofocus>
+                        <input type="email" id="login-username" placeholder="ex: seunome@empresa.com.br" required autofocus>
                     </div>
                     <div class="form-group">
                         <div style="display:flex; justify-content: space-between;">
@@ -1983,7 +1983,7 @@ const renderLogin = () => {
                         </div>
                         <input type="password" id="login-password" placeholder="Digite sua senha" required>
                     </div>
-                    <button type="submit" class="btn btn-primary" id="btn-login-submit" style="width: 100%; margin-top: 1.5rem; padding: 1rem;">Conectar (Google Auth)</button>
+                    <button type="submit" class="btn btn-primary" id="btn-login-submit" style="width: 100%; margin-top: 1.5rem; padding: 1rem;">Conectar</button>
                     <div id="login-error" style="color: var(--danger); font-size: 0.875rem; text-align: center; margin-top: 1rem; display: none;">
                         Usuário ou senha incorretos.
                     </div>
