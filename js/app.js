@@ -2159,25 +2159,24 @@ const setupApplication = (activeTabId) => {
     // Setup Sidebar User Area
     const userArea = document.getElementById('user-area');
     userArea.innerHTML = `
-        <div class="user-sidebar-card">
-            <div class="user-sidebar-info">
-                <span class="user-sidebar-name">${state.currentUser.name}</span>
-                <span class="user-sidebar-role">${state.currentUser.roles.join(', ')}</span>
-            </div>
-            <div class="user-sidebar-actions">
-                <button id="theme-toggle-btn" class="btn btn-sidebar btn-change-pass" title="Alternar Tema">
-                    <i data-lucide="${state.theme === 'dark' ? 'sun' : 'moon'}"></i> 
-                    Tema ${state.theme === 'dark' ? 'Claro' : 'Escuro'}
-                </button>
-                <button id="change-pass-btn" class="btn btn-sidebar btn-change-pass" title="Alterar Senha">
-                    <i data-lucide="key"></i> Alterar Senha
-                </button>
-                <button id="logout-btn" class="btn btn-sidebar btn-logout" title="Sair">
-                    <i data-lucide="log-out"></i> Sair do Sistema
-            </div>
-            <div style="text-align: center; margin-top: 1rem; font-size: 0.65rem; color: var(--text-muted); opacity: 0.6; width: 100%;">
-                Versão: Beta
-            </div>
+        <div class="user-sidebar-info">
+            <span class="user-sidebar-name">${state.currentUser.name}</span>
+            <span class="user-sidebar-role">${state.currentUser.roles[0] || 'Acesso'}</span>
+        </div>
+        <div class="user-sidebar-actions">
+            <button id="theme-toggle-btn" class="btn-sidebar-white">
+                <i data-lucide="${state.theme === 'dark' ? 'sun' : 'moon'}"></i> 
+                <span>Tema ${state.theme === 'dark' ? 'Claro' : 'Escuro'}</span>
+            </button>
+            <button id="change-pass-btn" class="btn-sidebar-white">
+                <i data-lucide="key"></i> <span>Alterar Senha</span>
+            </button>
+            <button id="logout-btn" class="logout-btn-sidebar">
+                <i data-lucide="log-out"></i> <span>Sair do Sistema</span>
+            </button>
+        </div>
+        <div class="sidebar-footer">
+            Versão: Beta
         </div>
     `;
 

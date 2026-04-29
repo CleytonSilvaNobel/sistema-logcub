@@ -50,17 +50,18 @@ body {
 }
 
 #sidebar {
-    width: 300px;
-    background: var(--bg-card);
-    border-right: 1px solid var(--border);
+    width: 280px;
+    background: #0f172a;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
     height: 100vh;
     position: sticky;
     top: 0;
     display: flex;
     flex-direction: column;
-    padding: 2.5rem 1.5rem;
+    padding: 2rem 1.25rem;
     flex-shrink: 0;
     z-index: 1000;
+    color: white;
 }
 
 #tab-content {
@@ -73,15 +74,15 @@ body {
 /* --- BRANDING --- */
 .logo {
     display: flex;
-    align-items: flex-start;
-    gap: 1.25rem;
-    margin-bottom: 4rem;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 3rem;
+    padding: 0.5rem;
 }
 
 .logo i {
     color: var(--accent);
     font-size: 2.5rem;
-    margin-top: 0.2rem;
 }
 
 .logo-text {
@@ -90,20 +91,20 @@ body {
 }
 
 .logo h1 {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 700;
     letter-spacing: -0.025em;
-    color: var(--text-primary);
-    line-height: 1;
+    color: white;
+    line-height: 1.1;
+    margin: 0;
 }
 
 .brand-nobel {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.75rem;
+    font-weight: 800;
     color: var(--accent);
     text-transform: uppercase;
-    letter-spacing: 0.15em;
-    margin-top: 0.5rem;
+    letter-spacing: 0.1em;
 }
 
 /* --- NAVIGATION --- */
@@ -117,32 +118,108 @@ nav {
 .nav-btn {
     background: transparent;
     border: none;
-    color: var(--text-secondary);
-    padding: 1rem 1.5rem;
+    color: #94a3b8;
+    padding: 0.875rem 1.25rem;
     border-radius: 1rem;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    gap: 1rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-weight: 500;
+    font-weight: 600;
     width: 100%;
     font-size: 1rem;
 }
 
 .nav-btn:hover {
-    background: rgba(56, 189, 248, 0.08);
-    color: var(--text-primary);
-    transform: translateX(4px);
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
 }
 
 .nav-btn.active {
     background: var(--accent);
     color: white;
-    padding: 2rem;
-    max-width: 1400px;
-    margin: 0 auto;
+    box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.5);
+}
+
+.nav-btn i {
+    width: 22px;
+    height: 22px;
+}
+
+/* User Area (Bottom) */
+#user-area {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.user-sidebar-info {
+    margin-bottom: 1.5rem;
+}
+
+.user-sidebar-name {
+    display: block;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: white;
+}
+
+.user-sidebar-role {
+    display: block;
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.btn-sidebar-white {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background: white;
+    color: #0f172a;
+    border: none;
+    border-radius: 1rem;
+    padding: 0.875rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
     width: 100%;
+    margin-bottom: 0.75rem;
+}
+
+.btn-sidebar-white:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.logout-btn-sidebar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    background: transparent !important;
+    border: none;
+    color: #94a3b8 !important;
+    padding: 0.875rem;
+    cursor: pointer;
+    width: 100%;
+    font-weight: 600;
+}
+
+.logout-btn-sidebar:hover {
+    color: white !important;
+}
+
+.sidebar-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+    color: #475569;
+    font-weight: 500;
 }
 
 /* Common UI Elements */
