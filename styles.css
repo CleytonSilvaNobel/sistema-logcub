@@ -173,6 +173,12 @@ nav {
     text-transform: uppercase;
 }
 
+.user-sidebar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
 .btn-sidebar-white {
     display: flex;
     align-items: center;
