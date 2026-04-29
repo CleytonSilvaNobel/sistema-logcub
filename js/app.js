@@ -2004,7 +2004,6 @@ const renderLogin = () => {
         <div class="login-screen">
             <div class="login-card fade-in">
                 <div class="logo">
-                    <i data-lucide="truck"></i>
                     <h1>LogCub</h1>
                     <span class="brand-nobel">NOBELPACK</span>
                 </div>
