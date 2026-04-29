@@ -1,7 +1,44 @@
-/**
- * LogCub - Cubagem Rodoviária
- * Unified Logic for manual and file operations
- */
+// --- UTILS ---
+const Utils = {
+    notify: (message, type = 'info') => {
+        const toast = document.createElement('div');
+        toast.className = `toast-notif toast-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.classList.add('show'), 100);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+};
+
+// Add toast styles dynamically
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `
+    .toast-notif {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        background: #1e293b;
+        color: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        border-left: 4px solid #38bdf8;
+        z-index: 100000;
+        transform: translateY(100px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 500;
+        opacity: 0;
+    }
+    .toast-notif.show { transform: translateY(0); opacity: 1; }
+    .toast-success { border-left-color: #22c55e; }
+    .toast-danger { border-left-color: #ef4444; }
+    .toast-warning { border-left-color: #f59e0b; }
+`;
+document.head.appendChild(toastStyle);
 
 // --- CALCULATIONS ---
 const CR_CALC = {
@@ -1996,26 +2033,21 @@ const renderLogin = () => {
     document.getElementById('forgot-password').onclick = (e) => {
         e.preventDefault();
         const login = document.getElementById('login-username').value.trim();
-        const err = document.getElementById('login-error');
-        
         if (!login) {
-            err.style.color = 'var(--danger)';
-            err.textContent = 'Preencha seu e-mail no campo acima primeiro.';
-            err.style.display = 'block';
+            Utils.notify('Preencha seu e-mail no campo acima primeiro.', 'warning');
             return;
         }
 
-        firebase.auth().sendPasswordResetEmail(login)
-            .then(() => {
-                err.style.color = 'var(--success)';
-                err.textContent = 'E-mail de recuperação enviado! Verifique sua caixa de entrada.';
-                err.style.display = 'block';
-            })
-            .catch((error) => {
-                err.style.color = 'var(--danger)';
-                err.textContent = 'Erro ao enviar e-mail. Verifique se o formato está correto.';
-                err.style.display = 'block';
-            });
+        if (confirm(`Deseja enviar um e-mail de recuperação de senha para ${login}?`)) {
+            firebase.auth().sendPasswordResetEmail(login)
+                .then(() => {
+                    Utils.notify('E-mail de recuperação enviado! Verifique sua caixa de entrada.', 'success');
+                })
+                .catch((error) => {
+                    console.error(error);
+                    Utils.notify('Erro ao enviar e-mail. Verifique se o endereço está correto.', 'danger');
+                });
+        }
     };
 
     document.getElementById('login-form').onsubmit = (e) => {
