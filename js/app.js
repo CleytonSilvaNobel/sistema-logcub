@@ -5,7 +5,7 @@ const Utils = {
         toast.className = `toast-notif toast-${type}`;
         toast.textContent = message;
         document.body.appendChild(toast);
-        
+
         setTimeout(() => toast.classList.add('show'), 100);
         setTimeout(() => {
             toast.classList.remove('show');
@@ -78,9 +78,9 @@ const CR_CALC = {
         const m3PalletTotal = (product.pallet_comprimento * product.pallet_largura * product.pallet_altura) / 1000000;
         const m3PalletUnit = m3PalletTotal / product.pallet_qtd_pacotes;
         const volNominal = product.volume_m3_calc;
-        
+
         if (!volNominal || volNominal <= 0) return { status: 'incompleto', delta: 0 };
-        
+
         const delta = Math.abs((m3PalletUnit - volNominal) / volNominal) * 100;
         if (delta <= (tolerance || 5)) return { status: 'coerente', delta };
         return { status: 'inconsistente', delta };
@@ -136,10 +136,10 @@ const state = {
     users: (() => {
         const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
         const defaults = [
-            { id: '1', username: 'adm', password: 'Senha123', roles: ['adm'], name: 'Administrador' },
-            { id: '2', username: 'supervisor', password: 'Senha123', roles: ['supervisor'], name: 'Supervisor' },
-            { id: '3', username: 'operador', password: 'Senha123', roles: ['operador'], name: 'Operador' },
-            { id: '4', username: 'visitante', password: 'Senha123', roles: ['visitante'], name: 'Visitante' }
+            { id: '1', username: 'adm', password: '[SUA_SENHA_AQUI]', roles: ['adm'], name: 'Administrador' },
+            { id: '2', username: 'supervisor', password: '[SUA_SENHA_AQUI]', roles: ['supervisor'], name: 'Supervisor' },
+            { id: '3', username: 'operador', password: '[SUA_SENHA_AQUI]', roles: ['operador'], name: 'Operador' },
+            { id: '4', username: 'visitante', password: '[SUA_SENHA_AQUI]', roles: ['visitante'], name: 'Visitante' }
         ];
 
         if (stored.length === 0) {
@@ -173,13 +173,13 @@ const state = {
     listeners: [],
     subscribe(callback) { this.listeners.push(callback); },
     notify() { this.listeners.forEach(callback => callback()); },
-    persist(key, data, persistent = true) { 
+    persist(key, data, persistent = true) {
         const json = JSON.stringify(data);
         if (persistent) localStorage.setItem(key, json);
         else sessionStorage.setItem(key, json);
-        this.notify(); 
+        this.notify();
     },
-    
+
     login: (username, password, remember = false) => {
         // Função original de login substituída pelo Firebase Auth
         return false;
@@ -214,15 +214,15 @@ const state = {
         if (this.hasRole('adm')) return true;
         const roles = this.currentUser.roles;
         const isVisitante = roles.includes('visitante');
-        
-        switch(action) {
+
+        switch (action) {
             case 'manage_users': return roles.includes('adm');
             case 'delete_product':
             case 'import_data':
             case 'inactivate_product': return (roles.includes('supervisor') || roles.includes('adm')) && !isVisitante;
-            case 'add_product': 
+            case 'add_product':
             case 'edit_product': return !isVisitante;
-            case 'view_dashboard': 
+            case 'view_dashboard':
             case 'view_results':
             case 'view_simulation': return true;
             case 'sync_cloud': return !isVisitante;
@@ -232,9 +232,9 @@ const state = {
     saveProduct(product) {
         const index = this.products.findIndex(p => p.id === product.id || p.codigo === product.codigo);
         if (index >= 0) {
-            this.products[index] = { 
-                ...this.products[index], 
-                ...product, 
+            this.products[index] = {
+                ...this.products[index],
+                ...product,
                 ativo: product.ativo !== undefined ? product.ativo : (this.products[index].ativo !== undefined ? this.products[index].ativo : true),
                 updated_at: new Date().toISOString(),
                 alterado_por: state.currentUser ? state.currentUser.name : (this.products[index].criado_por || 'Cleyton')
@@ -279,7 +279,7 @@ const state = {
 
         if (appNameEl) appNameEl.textContent = p.brand_app_name || 'LogCub';
         if (companyNameEl) companyNameEl.textContent = p.brand_company_name || 'NobelPack';
-        
+
         if (logoEl && p.brand_logo_url) {
             if (logoEl.tagName === 'I') {
                 const img = document.createElement('img');
@@ -328,8 +328,8 @@ const clearContent = () => {
 const renderProductList = (filter = '') => {
     const container = document.getElementById('product-list');
     const filtered = state.products
-        .filter(p => 
-            p.codigo.toLowerCase().includes(filter.toLowerCase()) || 
+        .filter(p =>
+            p.codigo.toLowerCase().includes(filter.toLowerCase()) ||
             p.descricao.toLowerCase().includes(filter.toLowerCase()) ||
             (p.cliente && p.cliente.toLowerCase().includes(filter.toLowerCase()))
         )
@@ -366,11 +366,11 @@ const renderProductList = (filter = '') => {
                             </td>
                             <td>
                                 ${(() => {
-                                    const c = CR_CALC.checkPalletConsistency(p, state.parameters.tolerancia_paletizacao);
-                                    if (c.status === 'incompleto') return '<span class="badge" style="background:#6b7280; color:white; font-size:0.6rem;" title="Dados de paletização incompletos">Incompleto</span>';
-                                    if (c.status === 'coerente') return `<span class="badge badge-success" style="font-size:0.6rem;" title="Variação: ${c.delta.toFixed(1)}%">Coerente</span>`;
-                                    return `<span class="badge badge-danger" style="font-size:0.6rem;" title="Variação: ${c.delta.toFixed(1)}%">Inconsistente</span>`;
-                                })()}
+            const c = CR_CALC.checkPalletConsistency(p, state.parameters.tolerancia_paletizacao);
+            if (c.status === 'incompleto') return '<span class="badge" style="background:#6b7280; color:white; font-size:0.6rem;" title="Dados de paletização incompletos">Incompleto</span>';
+            if (c.status === 'coerente') return `<span class="badge badge-success" style="font-size:0.6rem;" title="Variação: ${c.delta.toFixed(1)}%">Coerente</span>`;
+            return `<span class="badge badge-danger" style="font-size:0.6rem;" title="Variação: ${c.delta.toFixed(1)}%">Inconsistente</span>`;
+        })()}
                             </td>
                             <td><strong>${p.codigo}</strong></td>
                             <td>${p.descricao}</td>
@@ -411,7 +411,7 @@ const renderProductList = (filter = '') => {
     });
     document.querySelectorAll('.delete-product').forEach(btn => {
         btn.addEventListener('click', () => {
-            if(confirm('Tem certeza que deseja excluir este produto?')) {
+            if (confirm('Tem certeza que deseja excluir este produto?')) {
                 state.deleteProduct(btn.dataset.id);
                 renderProductList(document.getElementById('search-products').value);
                 renderToast('Produto excluído!');
@@ -423,7 +423,7 @@ const renderProductList = (filter = '') => {
 const openProductModal = (product = null) => {
     const container = document.getElementById('modal-container');
     const isEdit = !!product;
-    
+
     container.innerHTML = `
         <div class="modal-overlay">
             <div class="modal fade-in">
@@ -523,7 +523,7 @@ const openProductModal = (product = null) => {
         const comp = parseFloat(document.getElementById('p-comp').value) || 0;
         const larg = parseFloat(document.getElementById('p-larg').value) || 0;
         const alt = parseFloat(document.getElementById('p-alt').value) || 0;
-        
+
         const pComp = parseFloat(document.getElementById('p-pallet-comp').value) || 0;
         const pLarg = parseFloat(document.getElementById('p-pallet-larg').value) || 0;
         const pAlt = parseFloat(document.getElementById('p-pallet-alt').value) || 0;
@@ -536,25 +536,25 @@ const openProductModal = (product = null) => {
             parseFloat(document.getElementById('p-peso4').value),
             parseFloat(document.getElementById('p-peso5').value)
         ];
-        
+
         const vol = CR_CALC.calcVolumeM3(comp, larg, alt);
         const medio = CR_CALC.calcPesoMedio(pesos);
         const dens = CR_CALC.calcDensidade(medio, vol);
         const cubado = CR_CALC.calcPesoCubado(vol, state.parameters.fator_kg_m3);
-        
+
         document.getElementById('calc-vol').textContent = CR_CALC.formatValue(vol, state.parameters.decimais_volume) + ' m³';
         document.getElementById('calc-peso').textContent = CR_CALC.formatValue(medio, state.parameters.decimais_peso) + ' kg';
         document.getElementById('calc-dens').textContent = CR_CALC.formatValue(dens, 2) + ' kg/m³';
         document.getElementById('calc-cubado').textContent = CR_CALC.formatValue(cubado, state.parameters.decimais_peso) + ' kg';
-        
+
         // Pallet consistency feedback
         const feedback = document.getElementById('pallet-feedback');
         if (pComp && pLarg && pAlt && pQtd && vol > 0) {
             const consistency = CR_CALC.checkPalletConsistency({
-                pallet_comprimento: pComp, pallet_largura: pLarg, pallet_altura: pAlt, 
+                pallet_comprimento: pComp, pallet_largura: pLarg, pallet_altura: pAlt,
                 pallet_qtd_pacotes: pQtd, volume_m3_calc: vol
             }, state.parameters.tolerancia_paletizacao);
-            
+
             feedback.style.display = 'block';
             if (consistency.status === 'coerente') {
                 feedback.style.background = 'rgba(34, 197, 94, 0.1)';
@@ -580,7 +580,7 @@ const openProductModal = (product = null) => {
     document.getElementById('cancel-modal').onclick = close;
     form.onsubmit = (e) => {
         e.preventDefault();
-        
+
         const btnSave = document.getElementById('btn-save-product');
         if (btnSave) {
             btnSave.disabled = true;
@@ -621,18 +621,18 @@ const exportToExcel = () => {
     if (state.products.length === 0) { renderToast('Nenhum produto para exportar.', 'error'); return; }
     const data = state.products.map(p => ({
         'Status': p.ativo !== false ? 'Ativo' : 'Inativo',
-        'Código': p.codigo, 
-        'Descrição': p.descricao, 
+        'Código': p.codigo,
+        'Descrição': p.descricao,
         'Cliente': p.cliente || '',
-        'Comprimento (cm)': p.comprimento_cm, 
-        'Largura (cm)': p.largura_cm, 
+        'Comprimento (cm)': p.comprimento_cm,
+        'Largura (cm)': p.largura_cm,
         'Altura (cm)': p.altura_cm,
         'Peso 1': p.peso1_kg || '',
         'Peso 2': p.peso2_kg || '',
         'Peso 3': p.peso3_kg || '',
         'Peso 4': p.peso4_kg || '',
         'Peso 5': p.peso5_kg || '',
-        'Peso Médio (kg)': p.peso_medio_calc, 
+        'Peso Médio (kg)': p.peso_medio_calc,
         'm³': p.volume_m3_calc,
         'Densidade (kg/m³)': CR_CALC.calcDensidade(p.peso_medio_calc, p.volume_m3_calc),
         'Comp. Palete (cm)': p.pallet_comprimento || '',
@@ -656,7 +656,7 @@ const importFromExcel = (file) => {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet);
-        
+
         const existingCodes = new Set(state.products.map(p => p.codigo));
         const duplicates = rows.filter(row => {
             const code = String(row['codigo'] || row['Código'] || '');
@@ -677,15 +677,15 @@ const importFromExcel = (file) => {
             rows.forEach(row => {
                 const codigo = String(row['codigo'] || row['Código'] || '');
                 if (!codigo) return;
-                
+
                 const exists = existingCodes.has(codigo);
                 if (exists && !overwrite) return; // Skip if user chose not to overwrite
-                
+
                 const pesos = [
-                    row['peso1_kg'] || row['Peso 1'], 
-                    row['peso2_kg'] || row['Peso 2'], 
-                    row['peso3_kg'] || row['Peso 3'], 
-                    row['peso4_kg'] || row['Peso 4'], 
+                    row['peso1_kg'] || row['Peso 1'],
+                    row['peso2_kg'] || row['Peso 2'],
+                    row['peso3_kg'] || row['Peso 3'],
+                    row['peso4_kg'] || row['Peso 4'],
                     row['peso5_kg'] || row['Peso 5']
                 ].map(p => parseExcelNumber(p));
 
@@ -693,12 +693,12 @@ const importFromExcel = (file) => {
                 const comp = parseExcelNumber(row['Comprimento (cm)'] || row['Comprimento'] || 0);
                 const larg = parseExcelNumber(row['Largura (cm)'] || row['Largura'] || 0);
                 const alt = parseExcelNumber(row['Altura (cm)'] || row['Altura'] || 0);
-                
+
                 if (comp <= 0 || larg <= 0 || alt <= 0) { errors++; return; }
-                
+
                 state.saveProduct({
-                    codigo, 
-                    descricao: row['Descrição'] || row['Descrição'] || 'Importado', 
+                    codigo,
+                    descricao: row['Descrição'] || row['Descrição'] || 'Importado',
                     cliente: row['Cliente'] || row['Cliente'] || '',
                     ativo: statusParsed,
                     comprimento_cm: comp, largura_cm: larg, altura_cm: alt,
@@ -777,17 +777,17 @@ const openImportHelpModal = () => {
         </div>
     `;
     lucide.createIcons();
-    
+
     const close = () => container.innerHTML = '';
     document.getElementById('close-modal-help').onclick = close;
     document.getElementById('close-modal-help-btn').onclick = close;
     document.getElementById('download-template').onclick = () => {
         const templateData = [
-            { 
-                'Status': 'Ativo', 'Código': 'PROD-001', 'Descrição': 'Exemplo de Produto', 'Cliente': 'Cliente A', 
+            {
+                'Status': 'Ativo', 'Código': 'PROD-001', 'Descrição': 'Exemplo de Produto', 'Cliente': 'Cliente A',
                 'Comprimento (cm)': 100, 'Largura (cm)': 50, 'Altura (cm)': 30,
                 'Comp. Palete (cm)': 120, 'Larg. Palete (cm)': 100, 'Alt. Palete (cm)': 110, 'Qtd. Pacotes no Palete': 20,
-                'Peso 1': 10.5, 'Peso 2': 10.2, 'Peso 3': 10.8, 'Peso 4': '', 'Peso 5': '' 
+                'Peso 1': 10.5, 'Peso 2': 10.2, 'Peso 3': 10.8, 'Peso 4': '', 'Peso 5': ''
             }
         ];
         const ws = XLSX.utils.json_to_sheet(templateData);
@@ -804,7 +804,7 @@ const importInactivationList = (file) => {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet);
-        
+
         let count = 0;
         rows.forEach(row => {
             const codigo = String(row['codigo'] || row['Código'] || '');
@@ -877,16 +877,16 @@ const tabs = {
 
         const renderSimTable = () => {
             const container = document.getElementById('sim-items');
-            if (simItems.length === 0) { 
-                container.innerHTML = `<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Adicione produtos para iniciar a simulação.</p>`; 
-                return; 
+            if (simItems.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Adicione produtos para iniciar a simulação.</p>`;
+                return;
             }
             let totalVol = 0; let totalBruto = 0; let totalCubado = 0;
             const sortedSimItems = [...simItems].sort((a, b) => a.product.codigo.localeCompare(b.product.codigo, undefined, { sensitivity: 'base' }));
             const rows = sortedSimItems.map((item, index) => {
                 let volUnit, pesoUnit;
                 const isPallet = !!item.isPallet;
-                
+
                 if (isPallet) {
                     volUnit = (item.product.pallet_comprimento * item.product.pallet_largura * item.product.pallet_altura) / 1000000;
                     pesoUnit = (item.product.peso_medio_calc || 0) * (item.product.pallet_qtd_pacotes || 1);
@@ -895,12 +895,12 @@ const tabs = {
                     pesoUnit = item.product.peso_medio_calc || 0;
                 }
 
-                const volTotal = volUnit * item.qtd; 
-                const pesoBruto = pesoUnit * item.qtd; 
+                const volTotal = volUnit * item.qtd;
+                const pesoBruto = pesoUnit * item.qtd;
                 const pesoCubado = volTotal * simFator;
-                
-                totalVol += volTotal; 
-                totalBruto += pesoBruto; 
+
+                totalVol += volTotal;
+                totalBruto += pesoBruto;
                 totalCubado += pesoCubado;
 
                 return `
@@ -944,27 +944,27 @@ const tabs = {
                     <div><span>Cubagem Total:</span> <strong style="color: var(--accent);">${CR_CALC.formatValue(totalVol, 6)} m³</strong></div>
                 </div>`;
             lucide.createIcons();
-            document.querySelectorAll('.item-qtd').forEach(input => { 
-                input.onchange = (e) => { 
+            document.querySelectorAll('.item-qtd').forEach(input => {
+                input.onchange = (e) => {
                     const idx = parseInt(e.target.dataset.idx);
                     if (sortedSimItems[idx]) {
                         // Find the item in the original simItems array
                         const originalItem = simItems.find(i => i.product.id === sortedSimItems[idx].product.id && i.isPallet === sortedSimItems[idx].isPallet);
-                        if (originalItem) originalItem.qtd = parseInt(e.target.value) || 1; 
-                        renderSimTable(); 
+                        if (originalItem) originalItem.qtd = parseInt(e.target.value) || 1;
+                        renderSimTable();
                     }
-                }; 
+                };
             });
-            document.querySelectorAll('.remove-sim-item').forEach(btn => { 
-                btn.onclick = () => { 
+            document.querySelectorAll('.remove-sim-item').forEach(btn => {
+                btn.onclick = () => {
                     const idx = parseInt(btn.dataset.idx);
                     if (sortedSimItems[idx]) {
                         const originalIdx = simItems.findIndex(i => i.product.id === sortedSimItems[idx].product.id && i.isPallet === sortedSimItems[idx].isPallet);
-                        if (originalIdx !== -1) simItems.splice(originalIdx, 1); 
+                        if (originalIdx !== -1) simItems.splice(originalIdx, 1);
                         updateSimProductSelect();
-                        renderSimTable(); 
+                        renderSimTable();
                     }
-                }; 
+                };
             });
         };
 
@@ -1016,25 +1016,25 @@ const tabs = {
         document.getElementById('sim-add-product').onchange = (e) => {
             const prod = state.products.find(p => p.id === e.target.value);
             const mode = document.getElementById('sim-add-mode').value;
-            
-            if (prod) { 
+
+            if (prod) {
                 if (mode === 'pallet' && (!prod.pallet_comprimento || !prod.pallet_largura || !prod.pallet_altura)) {
                     renderToast('Este produto não possui dimensões de palete cadastradas.', 'error');
                     e.target.value = '';
                     return;
                 }
-                
+
                 // Allow adding same product as both unit and pallet
                 const exists = simItems.find(i => i.product.id === prod.id && i.isPallet === (mode === 'pallet'));
                 if (exists) {
                     exists.qtd++;
                 } else {
-                    simItems.push({ product: prod, qtd: 1, isPallet: mode === 'pallet' }); 
+                    simItems.push({ product: prod, qtd: 1, isPallet: mode === 'pallet' });
                 }
-                
+
                 updateSimProductSelect();
-                renderSimTable(); 
-                e.target.value = ''; 
+                renderSimTable();
+                e.target.value = '';
             }
         };
         document.getElementById('export-sim').onclick = () => {
@@ -1050,18 +1050,18 @@ const tabs = {
         const renderResTable = () => {
             const container = document.getElementById('res-content');
             const summaryContainer = document.getElementById('res-summary-top');
-            
-            if (!currentClient && currentClient !== 'all') { 
-                container.innerHTML = `<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Selecione um cliente para visualizar produtos.</p>`; 
+
+            if (!currentClient && currentClient !== 'all') {
+                container.innerHTML = `<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Selecione um cliente para visualizar produtos.</p>`;
                 summaryContainer.innerHTML = '';
-                return; 
+                return;
             }
-            
-            const clientProducts = (currentClient === 'all' 
-                ? state.products.filter(p => p.ativo !== false) 
+
+            const clientProducts = (currentClient === 'all'
+                ? state.products.filter(p => p.ativo !== false)
                 : state.products.filter(p => p.cliente === currentClient && p.ativo !== false))
                 .sort((a, b) => a.codigo.localeCompare(b.codigo, undefined, { sensitivity: 'base' }));
-                
+
             let totalVol = 0; let totalBruto = 0; let totalCubado = 0;
             const rows = clientProducts.map(p => {
                 const isSelected = selectedItems.has(p.id); const q = itemQuantities[p.id] || 0;
@@ -1091,15 +1091,15 @@ const tabs = {
             document.querySelectorAll('.res-select').forEach(cb => { cb.onchange = (e) => { if (e.target.checked) selectedItems.add(e.target.dataset.id); else selectedItems.delete(e.target.dataset.id); renderResTable(); }; });
             document.querySelectorAll('.res-qtd').forEach(input => { input.onchange = (e) => { itemQuantities[e.target.dataset.id] = parseInt(e.target.value) || 0; renderResTable(); }; });
             document.getElementById('res-export').onclick = () => {
-                const data = clientProducts.filter(p => selectedItems.has(p.id)).map(p => ({ 
-                    'Código': p.codigo, 
-                    'Qtd': itemQuantities[p.id] || 1, 
-                    'm³ Total': p.volume_m3_calc * (itemQuantities[p.id] || 1), 
-                    'Peso Total': p.peso_medio_calc * (itemQuantities[p.id] || 1) 
+                const data = clientProducts.filter(p => selectedItems.has(p.id)).map(p => ({
+                    'Código': p.codigo,
+                    'Qtd': itemQuantities[p.id] || 1,
+                    'm³ Total': p.volume_m3_calc * (itemQuantities[p.id] || 1),
+                    'Peso Total': p.peso_medio_calc * (itemQuantities[p.id] || 1)
                 }));
-                const ws = XLSX.utils.json_to_sheet(data); 
-                const wb = XLSX.utils.book_new(); 
-                XLSX.utils.book_append_sheet(wb, ws, "Resultados"); 
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Resultados");
                 XLSX.writeFile(wb, "resultados_logcub.xlsx");
             };
         };
@@ -1119,10 +1119,10 @@ const tabs = {
                     <div id="res-content" style="margin-top: 1.5rem;"></div>
                 </div>
             </div>`;
-        document.getElementById('res-client-filter').onchange = (e) => { 
-            currentClient = e.target.value; 
-            selectedItems.clear(); 
-            renderResTable(); 
+        document.getElementById('res-client-filter').onchange = (e) => {
+            currentClient = e.target.value;
+            selectedItems.clear();
+            renderResTable();
         };
         renderResTable(); lucide.createIcons();
     },
@@ -1193,8 +1193,8 @@ const tabs = {
             if (state.currentDashClients.size > 0) {
                 filteredAndSortedProducts = filteredAndSortedProducts.filter(p => state.currentDashClients.has(p.cliente));
             }
-            filteredAndSortedProducts.sort((a,b) => a.codigo.localeCompare(b.codigo));
-            
+            filteredAndSortedProducts.sort((a, b) => a.codigo.localeCompare(b.codigo));
+
             const availableIds = new Set(filteredAndSortedProducts.map(p => p.id));
             state.currentDashItems.forEach(id => {
                 if (!availableIds.has(id)) state.currentDashItems.delete(id);
@@ -1251,7 +1251,7 @@ const tabs = {
 
         const renderCharts = (sortedByDens, sortedByPeso, sortedByVol) => {
             Chart.register(ChartDataLabels);
-            
+
             ['chart-densidade', 'chart-peso', 'chart-volume'].forEach(id => {
                 const chart = Chart.getChart(id);
                 if (chart) chart.destroy();
@@ -1265,7 +1265,7 @@ const tabs = {
             const commonOptions = {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { 
+                plugins: {
                     legend: { display: false },
                     tooltip: { backgroundColor: isDark ? '#1e293b' : '#fff', titleColor: '#38bdf8', bodyColor: isDark ? '#fff' : '#1e293b', borderColor: 'var(--border)', borderWidth: 1 },
                     datalabels: { display: false }
@@ -1377,9 +1377,9 @@ const tabs = {
         lucide.createIcons();
         document.getElementById('params-form').onsubmit = (e) => {
             e.preventDefault();
-            state.saveParameters({ 
-                fator_kg_m3: parseFloat(document.getElementById('fator_kg_m3').value), 
-                decimais_volume: parseInt(document.getElementById('decimais_volume').value), 
+            state.saveParameters({
+                fator_kg_m3: parseFloat(document.getElementById('fator_kg_m3').value),
+                decimais_volume: parseInt(document.getElementById('decimais_volume').value),
                 decimais_peso: parseInt(document.getElementById('decimais_peso').value),
                 tolerancia_paletizacao: parseFloat(document.getElementById('tolerancia_paletizacao').value)
             });
@@ -1652,7 +1652,7 @@ const tabs = {
             btn.onclick = () => {
                 subnavItemsArr.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 document.querySelectorAll('#tab-content .sub-content').forEach(c => c.classList.remove('active'));
                 const targetId = btn.dataset.subtarget;
                 const activeContent = document.getElementById(targetId);
@@ -1665,9 +1665,9 @@ const tabs = {
         if (paramsForm) {
             paramsForm.onsubmit = (e) => {
                 e.preventDefault();
-                state.saveParameters({ 
-                    fator_kg_m3: parseFloat(document.getElementById('fator_kg_m3').value), 
-                    decimais_volume: parseInt(document.getElementById('decimais_volume').value), 
+                state.saveParameters({
+                    fator_kg_m3: parseFloat(document.getElementById('fator_kg_m3').value),
+                    decimais_volume: parseInt(document.getElementById('decimais_volume').value),
                     decimais_peso: parseInt(document.getElementById('decimais_peso').value),
                     tolerancia_paletizacao: parseFloat(document.getElementById('tolerancia_paletizacao').value)
                 });
@@ -1724,7 +1724,7 @@ const tabs = {
                     </td>
                 </tr>
             `).join('');
-            
+
             document.querySelectorAll('.edit-user').forEach(btn => {
                 btn.onclick = () => renderUserModal(state.users.find(u => u.id === btn.dataset.id));
             });
@@ -1868,14 +1868,14 @@ const tabs = {
             document.getElementById('bkp-monthday').value = '1';
             document.getElementById('bkp-time').value = '18:00';
         }
-        if(window.LogCubDB) window.LogCubDB.toggleBackupFields();
+        if (window.LogCubDB) window.LogCubDB.toggleBackupFields();
     }
 };
 
 const renderUserModal = (user = null) => {
     const container = document.getElementById('modal-container');
     const isEdit = !!user;
-    
+
     container.innerHTML = `
         <div class="modal-overlay">
             <div class="modal fade-in">
@@ -1917,16 +1917,16 @@ const renderUserModal = (user = null) => {
             </div>
         </div>
     `;
-    
+
     const close = () => container.innerHTML = '';
     document.getElementById('close-user-modal').onclick = close;
     document.getElementById('cancel-user-modal').onclick = close;
-    
+
     document.getElementById('user-form').onsubmit = (e) => {
         e.preventDefault();
         const selectedRoles = Array.from(document.querySelectorAll('.u-role:checked')).map(cb => cb.value);
         if (selectedRoles.length === 0) { renderToast('Selecione pelo menos um grupo.', 'error'); return; }
-        
+
         if (isEdit) {
             const index = state.users.findIndex(u => u.id === user.id);
             state.users[index] = { ...state.users[index], name: document.getElementById('u-name').value, roles: selectedRoles };
@@ -1937,7 +1937,7 @@ const renderUserModal = (user = null) => {
         } else {
             const username = document.getElementById('u-username').value.toLowerCase();
             if (state.users.some(u => u.username.toLowerCase() === username)) { renderToast('Este e-mail de usuário já existe.', 'error'); return; }
-            
+
             const pass = prompt('Digite uma senha inicial para o usuário no Google (Mínimo 6 caracteres):');
             if (!pass || pass.length < 6) {
                 renderToast('Senha inválida ou muito curta.', 'error');
@@ -1949,7 +1949,7 @@ const renderUserModal = (user = null) => {
                 .then(() => {
                     secondaryApp.auth().signOut();
                     secondaryApp.delete();
-                    
+
                     state.users.push({
                         id: crypto.randomUUID(),
                         name: document.getElementById('u-name').value,
@@ -1957,7 +1957,7 @@ const renderUserModal = (user = null) => {
                         password: 'Protegida (Firebase)',
                         roles: selectedRoles
                     });
-                    
+
                     state.persist(STORAGE_KEYS.USERS, state.users);
                     close();
                     tabs.gestao();
@@ -1966,7 +1966,7 @@ const renderUserModal = (user = null) => {
                 .catch(error => {
                     secondaryApp.delete();
                     console.error(error);
-                    if(error.code === 'auth/email-already-in-use') {
+                    if (error.code === 'auth/email-already-in-use') {
                         state.users.push({
                             id: crypto.randomUUID(),
                             name: document.getElementById('u-name').value,
@@ -1980,7 +1980,7 @@ const renderUserModal = (user = null) => {
                         renderToast('Usuário já existe no Google. Permissões vinculadas a este sistema com sucesso!', 'success');
                     } else {
                         let msg = 'Erro ao criar conta no Firebase.';
-                        if(error.code === 'auth/invalid-email') msg = 'Formato de e-mail inválido.';
+                        if (error.code === 'auth/invalid-email') msg = 'Formato de e-mail inválido.';
                         renderToast(msg, 'error');
                     }
                 });
@@ -2094,18 +2094,18 @@ const initApp = (activeTabId) => {
                         try {
                             const pStored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
                             if (pStored) state.products = JSON.parse(pStored);
-                            
+
                             const uStored = localStorage.getItem(STORAGE_KEYS.USERS);
                             if (uStored) state.users = JSON.parse(uStored);
-                            
+
                             const prStored = localStorage.getItem(STORAGE_KEYS.PARAMETERS);
                             if (prStored) state.parameters = JSON.parse(prStored);
-                            
+
                             const sStored = localStorage.getItem(STORAGE_KEYS.SIMULATIONS);
                             if (sStored) state.simulations = JSON.parse(sStored);
-                            
+
                             state.updateBranding();
-                        } catch(e) { console.error('Erro ao hidratar estado pós-sync:', e); }
+                        } catch (e) { console.error('Erro ao hidratar estado pós-sync:', e); }
                     } catch (e) {
                         console.warn('Falha ao sincronizar dados da nuvem antes do login:', e);
                     }
@@ -2197,7 +2197,7 @@ const setupApplication = (activeTabId) => {
         const activeTabBtn = document.querySelector('.nav-btn.active');
         const activeTabId = activeTabBtn ? activeTabBtn.dataset.tab : 'cadastros';
         state.toggleTheme();
-        initApp(activeTabId); 
+        initApp(activeTabId);
     };
 
     // Setup Navigation based on permissions
@@ -2232,7 +2232,7 @@ const setupApplication = (activeTabId) => {
         targetBtn.classList.add('active');
         tabs[finalTabId]();
     }
-    
+
     lucide.createIcons();
 };
 
@@ -2249,10 +2249,10 @@ window.onload = () => {
                 state.parameters = JSON.parse(localStorage.getItem(STORAGE_KEYS.PARAMETERS) || JSON.stringify(DEFAULT_PARAMETERS));
                 state.simulations = JSON.parse(localStorage.getItem(STORAGE_KEYS.SIMULATIONS) || '[]');
                 state.users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-                
+
                 // Relink Branding
                 state.updateBranding();
-                
+
                 // Triggers re-render if user is already logged in
                 if (state.currentUser) {
                     const activeTabLink = document.querySelector('.sidebar a.active');
@@ -2266,7 +2266,7 @@ window.onload = () => {
     } catch (e) {
         console.warn('Erro ao inicializar Firebase Sync.', e);
     }
-    
+
     initApp();
 };
 
@@ -2303,7 +2303,7 @@ window.LogCubDB = {
         reader.onload = (e) => {
             try {
                 const importedDB = JSON.parse(e.target.result);
-                
+
                 // Merge users (by username)
                 if (importedDB.users && Array.isArray(importedDB.users)) {
                     importedDB.users.forEach(u => {
