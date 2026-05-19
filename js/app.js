@@ -119,8 +119,8 @@ const state = {
                 p.ativo = true;
                 changed = true;
             }
-            if (!p.criado_por || p.criado_por === 'Sistema') {
-                p.criado_por = 'Cleyton';
+            if (!p.criado_por || p.criado_por === 'Sistema' || p.criado_por === 'Cleyton') {
+                p.criado_por = 'Sistema';
                 changed = true;
             }
             if (changed) migrated = true;
@@ -237,14 +237,14 @@ const state = {
                 ...product,
                 ativo: product.ativo !== undefined ? product.ativo : (this.products[index].ativo !== undefined ? this.products[index].ativo : true),
                 updated_at: new Date().toISOString(),
-                alterado_por: state.currentUser ? state.currentUser.name : (this.products[index].criado_por || 'Cleyton')
+                alterado_por: state.currentUser ? state.currentUser.name : (this.products[index].criado_por || 'Sistema')
             };
         } else {
             product.id = crypto.randomUUID();
             product.ativo = product.ativo !== undefined ? product.ativo : true;
             product.created_at = new Date().toISOString();
             product.updated_at = product.created_at;
-            product.criado_por = state.currentUser ? state.currentUser.name : 'Cleyton';
+            product.criado_por = state.currentUser ? state.currentUser.name : 'Sistema';
             this.products.push(product);
         }
         this.persist(STORAGE_KEYS.PRODUCTS, this.products);
@@ -1890,7 +1890,7 @@ const renderUserModal = (user = null) => {
                     </div>
                     <div class="form-group">
                         <label>E-mail (Nome de Usuário)*</label>
-                        <input type="email" id="u-username" value="${user?.username || ''}" placeholder="usuario@nobelpack.com.br" required ${isEdit ? 'disabled style="background:var(--bg-main);"' : ''}>
+                        <input type="email" id="u-username" value="${user?.username || ''}" placeholder="usuario@empresa.com.br" required ${isEdit ? 'disabled style="background:var(--bg-main);"' : ''}>
                     </div>
                     <div class="form-group">
                         <label>Grupos de Acesso*</label>
@@ -2115,20 +2115,6 @@ const initApp = (activeTabId) => {
                 if (localUser) {
                     state.currentUser = localUser;
                     setupApplication(activeTabId);
-                } else if (user.email.toLowerCase() === 'cleyton.silva@nobelpack.com.br' || user.email.toLowerCase() === 'admin@nobelpack.com.br') {
-                    // Auto-criação de perfil de administrador para evitar lockout
-                    const newAdm = {
-                        id: crypto.randomUUID(),
-                        name: 'Cleyton Silva (ADM)',
-                        username: user.email.toLowerCase(),
-                        password: 'Protegida (Firebase)',
-                        roles: ['adm', 'Administrador', 'Supervisor', 'Operador']
-                    };
-                    state.users.push(newAdm);
-                    state.persist('LogCub_Users', state.users);
-                    state.currentUser = newAdm;
-                    setupApplication(activeTabId);
-                    alert('Perfil de Administrador vinculado com sucesso!');
                 } else {
                     firebase.auth().signOut();
                     alert('Usuário logado no Google não possui cadastro interno de permissões no LogCub.');
