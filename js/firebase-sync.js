@@ -1,22 +1,22 @@
-/**
+﻿/**
  * Firebase Sync Controller for LogCub
- * Proteção Avançada contra Perda de Dados
+ * ProteÃ§Ã£o AvanÃ§ada contra Perda de Dados
  */
 
 const firebaseConfig = {
-    apiKey: "AIzaSyB8esLUJzqnumckLfjf5isY3qAcbw0pZ6s",
-    authDomain: "nobelpack-systems-4d510.firebaseapp.com",
-    databaseURL: "https://nobelpack-systems-4d510-default-rtdb.firebaseio.com",
-    projectId: "nobelpack-systems-4d510",
-    storageBucket: "nobelpack-systems-4d510.firebasestorage.app",
-    messagingSenderId: "661674699484",
-    appId: "1:661674699484:web:fa68c08bc3d9398d90e219",
-    measurementId: "G-EWFDHF9CDE"
+    apiKey: "AIzaSyCNvK23xN1hjRxD1dDaoW-uK2dyeqJzEgk",
+    authDomain: "nobelpack-systems-2.firebaseapp.com",
+    databaseURL: "https://nobelpack-systems-2-default-rtdb.firebaseio.com",
+    projectId: "nobelpack-systems-2",
+    storageBucket: "nobelpack-systems-2.firebasestorage.app",
+    messagingSenderId: "736419755079",
+    appId: "1:736419755079:web:5d3f1292252331fbc7ad62",
+    measurementId: "G-7NB3625L3H"
 };
 
 let dbRef = null;
 let isFirebaseInitialized = false;
-let isDataLoaded = false; // Trava de segurança: impede salvar antes de carregar
+let isDataLoaded = false; // Trava de seguranÃ§a: impede salvar antes de carregar
 
 const FirebaseDB = {
     init: () => {
@@ -32,7 +32,7 @@ const FirebaseDB = {
         }
     },
 
-    // Carregamento inicial obrigatório
+    // Carregamento inicial obrigatÃ³rio
     syncLoad: async () => {
         if (!isFirebaseInitialized) return null;
         try {
@@ -46,10 +46,10 @@ const FirebaseDB = {
                 if (cloudData.users) localStorage.setItem('cr_users', cloudData.users);
                 
                 isDataLoaded = true; 
-                console.log('Firebase (LogCub): Dados carregados. Sincronização de saída liberada.');
+                console.log('Firebase (LogCub): Dados carregados. SincronizaÃ§Ã£o de saÃ­da liberada.');
                 return cloudData;
             } else {
-                isDataLoaded = true; // Nuvem vazia é um estado válido
+                isDataLoaded = true; // Nuvem vazia Ã© um estado vÃ¡lido
                 console.log('Firebase (LogCub): Nuvem vazia. Pronto para novos dados.');
                 return null;
             }
@@ -68,9 +68,9 @@ const FirebaseDB = {
                 const cloudData = snapshot.val();
                 const localProds = localStorage.getItem('cr_products');
                 
-                // Só atualiza se houver mudança real e não for um downgrade de dados
+                // SÃ³ atualiza se houver mudanÃ§a real e nÃ£o for um downgrade de dados
                 if (JSON.stringify(cloudData.products) !== JSON.stringify(localProds)) {
-                    console.log('Firebase (LogCub): Atualização recebida da nuvem.');
+                    console.log('Firebase (LogCub): AtualizaÃ§Ã£o recebida da nuvem.');
                     if (cloudData.products) localStorage.setItem('cr_products', cloudData.products);
                     if (cloudData.parameters) localStorage.setItem('cr_parameters', cloudData.parameters);
                     if (cloudData.simulations) localStorage.setItem('cr_simulations', cloudData.simulations);
@@ -85,12 +85,12 @@ const FirebaseDB = {
         });
     },
 
-    // Gravação segura na nuvem
+    // GravaÃ§Ã£o segura na nuvem
     syncSave: (isManualWipe = false) => {
         if (!isFirebaseInitialized) return;
         
-        // SEGURANÇA: Nunca salva se a flag isDataLoaded for falsa
-        // Isso impede que um dispositivo recém-logado apague a nuvem antes de carregar os dados dela
+        // SEGURANÃ‡A: Nunca salva se a flag isDataLoaded for falsa
+        // Isso impede que um dispositivo recÃ©m-logado apague a nuvem antes de carregar os dados dela
         if (!isDataLoaded && !isManualWipe) {
             console.warn('Firebase (LogCub): syncSave BLOQUEADO. Aguardando carregamento inicial para evitar perda de dados.');
             return;
@@ -117,18 +117,18 @@ const FirebaseDB = {
                         const p = JSON.parse(latestLocalData.products);
                         localProdsCount = Array.isArray(p) ? p.length : 0;
                     }
-                } catch(e) { console.error('Erro no parser da transação:', e); }
+                } catch(e) { console.error('Erro no parser da transaÃ§Ã£o:', e); }
 
-                // TRAVA DE SEGURANÇA REFORÇADA:
-                // Se a nuvem tem dados e o local está vindo vazio ou com perda massiva, aborta o salvamento automático.
+                // TRAVA DE SEGURANÃ‡A REFORÃ‡ADA:
+                // Se a nuvem tem dados e o local estÃ¡ vindo vazio ou com perda massiva, aborta o salvamento automÃ¡tico.
                 if (cloudProdsCount > 0 && localProdsCount === 0) {
                     console.warn('SAFETY LOCK (LogCub): Bloqueada tentativa de apagar produtos da nuvem.');
-                    return; // Aborta a transação
+                    return; // Aborta a transaÃ§Ã£o
                 }
                 
                 if (cloudProdsCount > (localProdsCount + 10) && localProdsCount > 0) {
-                    console.warn(`SAFETY LOCK (LogCub): Nuvem tem ${cloudProdsCount} itens e Local tem apenas ${localProdsCount}. Possível perda de dados detectada. Abortando syncSave.`);
-                    return; // Aborta a transação
+                    console.warn(`SAFETY LOCK (LogCub): Nuvem tem ${cloudProdsCount} itens e Local tem apenas ${localProdsCount}. PossÃ­vel perda de dados detectada. Abortando syncSave.`);
+                    return; // Aborta a transaÃ§Ã£o
                 }
             }
 
