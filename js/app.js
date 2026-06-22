@@ -1325,10 +1325,28 @@ const tabs = {
             const sideScale = 0.22;
 
             // --- VISTA SUPERIOR ---
+            const palletX = 50;
+            const palletY = 50;
+            const palletWidth = pL * topScale;
+            const palletHeight = pW * topScale;
+
             ctx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
             ctx.setLineDash([5, 5]);
-            ctx.strokeRect(50, 50, pL * topScale, pW * topScale);
+            ctx.strokeRect(palletX, palletY, palletWidth, palletHeight);
             ctx.setLineDash([]);
+
+            // Adicionar Medidas do Palete (120x100)
+            ctx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
+            ctx.font = 'bold 10px Sans-serif';
+            ctx.textAlign = 'center';
+            // Lado de 120cm
+            ctx.fillText('120 cm', palletX + palletWidth / 2, palletY + palletHeight + 15);
+            // Lado de 100cm
+            ctx.save();
+            ctx.translate(palletX + palletWidth + 15, palletY + palletHeight / 2);
+            ctx.rotate(Math.PI / 2);
+            ctx.fillText('100 cm', 0, 0);
+            ctx.restore();
 
             if (layout && layout.boxes.length > 0) {
                 // Dimensões Totais da Massa de Carga
@@ -1357,15 +1375,15 @@ const tabs = {
                     ctx.fillStyle = inverted ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.25)';
                     ctx.strokeStyle = inverted ? '#10b981' : '#38bdf8';
                     ctx.lineWidth = 1.5;
-                    ctx.fillRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
-                    ctx.strokeRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
+                    ctx.fillRect(palletX + x * topScale, palletY + y * topScale, w * topScale, h * topScale);
+                    ctx.strokeRect(palletX + x * topScale, palletY + y * topScale, w * topScale, h * topScale);
 
                     if (idx === 0) {
                         ctx.fillStyle = inverted ? '#10b981' : '#38bdf8';
                         ctx.font = 'bold 11px Sans-serif';
                         ctx.textAlign = 'center';
-                        ctx.fillText(`${(w / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 - 2);
-                        ctx.fillText(`${(h / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 + 10);
+                        ctx.fillText(`${(w / 10).toFixed(0)}cm`, palletX + x * topScale + (w * topScale) / 2, palletY + y * topScale + (h * topScale) / 2 - 2);
+                        ctx.fillText(`${(h / 10).toFixed(0)}cm`, palletX + x * topScale + (w * topScale) / 2, palletY + y * topScale + (h * topScale) / 2 + 10);
                     }
                 });
             }
