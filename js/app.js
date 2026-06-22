@@ -88,36 +88,70 @@ const CR_CALC = {
 };
 
 const PalletAlgorithm = {
-    PBR: { L: 1200, W: 1000, H: 1500 },
+    PBR: { L: 1200, W: 1000, H: 1500, MaxWeight: 500 },
 
-    calculateOptimal(boxL_cm, boxW_cm, boxH_cm) {
-        const bL = boxL_cm * 10; // to mm
+    calculateOptimal(boxL_cm, boxW_cm, boxH_cm, boxWeight_kg) {
+        const bL = boxL_cm * 10;
         const bW = boxW_cm * 10;
         const bH = boxH_cm * 10;
+        const bWk = boxWeight_kg || 0;
 
-        const layouts = [
-            this.calcBasic(bL, bW, this.PBR.L, this.PBR.W), // Normal
-            this.calcBasic(bW, bL, this.PBR.L, this.PBR.W), // Rotated
-            this.calcSplit(bL, bW, this.PBR.L, this.PBR.W), // Split L
-            this.calcSplit(bW, bL, this.PBR.L, this.PBR.W)  // Split W
-        ];
+        const candidateLayouts = [];
 
-        // Filter and find best
-        const validLayouts = layouts.filter(l => l.count > 0);
-        if (validLayouts.length === 0) return null;
+        // 1. All combinations of full orientations
+        candidateLayouts.push(this.calcBasic(bL, bW, this.PBR.L, this.PBR.W, 'Alinhamento Direto (L)'));
+        candidateLayouts.push(this.calcBasic(bW, bL, this.PBR.L, this.PBR.W, 'Alinhamento Direto (W)'));
 
-        const best = validLayouts.reduce((prev, curr) => (curr.count > prev.count) ? curr : prev);
+        // 2. Exhaustive Vertical Split (Two Blocks)
+        for (let m = 1; m < Math.floor(this.PBR.L / bL); m++) {
+            candidateLayouts.push(this.calcDoubleBlock(bL, bW, bW, bL, m * bL, this.PBR.L, this.PBR.W, `Vertical Split ${m}L`));
+        }
+        for (let m = 1; m < Math.floor(this.PBR.L / bW); m++) {
+            candidateLayouts.push(this.calcDoubleBlock(bW, bL, bL, bW, m * bW, this.PBR.L, this.PBR.W, `Vertical Split ${m}W`));
+        }
 
-        const layers = Math.floor(this.PBR.H / bH);
+        // 3. Exhaustive Horizontal Split (Two Blocks)
+        for (let n = 1; n < Math.floor(this.PBR.W / bW); n++) {
+            candidateLayouts.push(this.calcDoubleBlockHorizontal(bL, bW, bW, bL, n * bW, this.PBR.L, this.PBR.W, `Horizontal Split ${n}W`));
+        }
+        for (let n = 1; n < Math.floor(this.PBR.W / bL); n++) {
+            candidateLayouts.push(this.calcDoubleBlockHorizontal(bW, bL, bL, bW, n * bL, this.PBR.L, this.PBR.W, `Horizontal Split ${n}L`));
+        }
+
+        // 4. Residue logic (Split & Fill) - Improved
+        candidateLayouts.push(this.calcResidue(bL, bW, this.PBR.L, this.PBR.W, 'Combo Otimizado L'));
+        candidateLayouts.push(this.calcResidue(bW, bL, this.PBR.L, this.PBR.W, 'Combo Otimizado W'));
+
+        // Filter valid and find best
+        const valid = candidateLayouts.filter(l => l && l.count > 0);
+        if (valid.length === 0) return null;
+
+        const best = valid.reduce((prev, curr) => (curr.count > prev.count) ? curr : prev);
+
+        const layersByHeight = Math.floor(this.PBR.H / bH);
+        let layers = layersByHeight;
+        let weightLimited = false;
+
+        if (bWk > 0) {
+            const layersByWeight = Math.floor(this.PBR.MaxWeight / (best.count * bWk));
+            if (layersByWeight < layersByHeight) {
+                layers = Math.max(0, Math.floor(layersByWeight));
+                weightLimited = true;
+            }
+        }
+
         return {
             ...best,
             layers,
             totalBoxes: best.count * layers,
-            efficiency: (best.count * bL * bW) / (this.PBR.L * this.PBR.W) * 100
+            totalWeight: best.count * layers * bWk,
+            efficiency: (best.count * bL * bW) / (this.PBR.L * this.PBR.W) * 100,
+            weightLimited,
+            layersByHeight
         };
     },
 
-    calcBasic(bL, bW, pL, pW) {
+    calcBasic(bL, bW, pL, pW, label) {
         const cols = Math.floor(pL / bL);
         const rows = Math.floor(pW / bW);
         const boxes = [];
@@ -126,26 +160,64 @@ const PalletAlgorithm = {
                 boxes.push({ x: c * bL, y: r * bW, w: bL, h: bW });
             }
         }
-        return { count: boxes.length, boxes, label: 'Alinhamento Simples' };
+        return { count: boxes.length, boxes, label };
     },
 
-    calcSplit(bL, bW, pL, pW) {
-        // Try filling as much as possible with bL x bW, then use residue for bW x bL
+    calcDoubleBlock(bL1, bW1, bL2, bW2, splitX, pL, pW, label) {
+        const boxes = [];
+        // Block 1
+        const cols1 = Math.floor(splitX / bL1);
+        const rows1 = Math.floor(pW / bW1);
+        for (let r = 0; r < rows1; r++) {
+            for (let c = 0; c < cols1; c++) {
+                boxes.push({ x: c * bL1, y: r * bW1, w: bL1, h: bW1 });
+            }
+        }
+        // Block 2
+        const cols2 = Math.floor((pL - splitX) / bL2);
+        const rows2 = Math.floor(pW / bW2);
+        for (let r = 0; r < rows2; r++) {
+            for (let c = 0; c < cols2; c++) {
+                boxes.push({ x: splitX + c * bL2, y: r * bW2, w: bL2, h: bW2 });
+            }
+        }
+        return { count: boxes.length, boxes, label };
+    },
+
+    calcDoubleBlockHorizontal(bL1, bW1, bL2, bW2, splitY, pL, pW, label) {
+        const boxes = [];
+        // Block 1 (Top)
+        const cols1 = Math.floor(pL / bL1);
+        const rows1 = Math.floor(splitY / bW1);
+        for (let r = 0; r < rows1; r++) {
+            for (let c = 0; c < cols1; c++) {
+                boxes.push({ x: c * bL1, y: r * bW1, w: bL1, h: bW1 });
+            }
+        }
+        // Block 2 (Bottom)
+        const cols2 = Math.floor(pL / bL2);
+        const rows2 = Math.floor((pW - splitY) / bW2);
+        for (let r = 0; r < rows2; r++) {
+            for (let c = 0; c < cols2; c++) {
+                boxes.push({ x: c * bL2, y: splitY + r * bW2, w: bL2, h: bW2 });
+            }
+        }
+        return { count: boxes.length, boxes, label };
+    },
+
+    calcResidue(bL, bW, pL, pW, label) {
         const mainCols = Math.floor(pL / bL);
         const mainRows = Math.floor(pW / bW);
         const boxes = [];
-
-        // Fill main area
         for (let r = 0; r < mainRows; r++) {
             for (let c = 0; c < mainCols; c++) {
                 boxes.push({ x: c * bL, y: r * bW, w: bL, h: bW });
             }
         }
-
-        // Check residue horizontal (right side)
-        const residueX = pL - (mainCols * bL);
-        if (residueX >= bW) {
-            const sideCols = Math.floor(residueX / bW);
+        // Filling residue strip on right
+        const resX = pL - (mainCols * bL);
+        if (resX >= bW) {
+            const sideCols = Math.floor(resX / bW);
             const sideRows = Math.floor(pW / bL);
             for (let r = 0; r < sideRows; r++) {
                 for (let c = 0; c < sideCols; c++) {
@@ -153,20 +225,21 @@ const PalletAlgorithm = {
                 }
             }
         }
-
-        // Check residue vertical (bottom side)
-        const residueY = pW - (mainRows * bW);
-        if (residueY >= bL && residueX < bW) { // Only if not already handled by horizontal residue fully
-            const botRows = Math.floor(residueY / bL);
+        // Filling residue strip on bottom
+        const resY = pW - (mainRows * bW);
+        if (resY >= bL) {
+            const botRows = Math.floor(resY / bL);
             const botCols = Math.floor(pL / bW);
             for (let r = 0; r < botRows; r++) {
                 for (let c = 0; c < botCols; c++) {
-                    boxes.push({ x: c * bW, y: mainRows * bW + r * bL, w: bW, h: bL });
+                    // Avoid overlapping with side residue
+                    if (c * bW < (mainCols * bL)) {
+                        boxes.push({ x: c * bW, y: mainRows * bW + r * bL, w: bW, h: bL });
+                    }
                 }
             }
         }
-
-        return { count: boxes.length, boxes, label: 'Otimizado (Misto)' };
+        return { count: boxes.length, boxes, label };
     }
 };
 
@@ -1308,13 +1381,14 @@ const tabs = {
             const comp = parseFloat(document.getElementById('sim-box-l').value);
             const larg = parseFloat(document.getElementById('sim-box-w').value);
             const alt = parseFloat(document.getElementById('sim-box-h').value);
+            const peso = parseFloat(document.getElementById('sim-box-weight').value) || 0;
 
             if (!comp || !larg || !alt) {
                 renderToast('Informe todas as dimensões da caixa.', 'warning');
                 return;
             }
 
-            const result = PalletAlgorithm.calculateOptimal(comp, larg, alt);
+            const result = PalletAlgorithm.calculateOptimal(comp, larg, alt, peso);
             currentSimulation = result;
 
             if (!result) {
@@ -1332,17 +1406,24 @@ const tabs = {
                     <div class="card" style="text-align: center; border-bottom: 3px solid #818cf8;">
                         <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Qtd. Camadas</span>
                         <strong style="font-size: 1.5rem;">${result.layers}</strong>
-                        <small style="display: block; font-size: 0.65rem; color: var(--text-muted);">Até 1.50m</small>
+                        <small style="display: block; font-size: 0.65rem; color: var(--text-muted);">${result.weightLimited ? 'Limitado por Peso' : 'Limitado por Altura'}</small>
                     </div>
                     <div class="card" style="text-align: center; border-bottom: 3px solid #10b981;">
-                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Total no Palete</span>
-                        <strong style="font-size: 1.5rem;">${result.totalBoxes}</strong>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Peso Total</span>
+                        <strong style="font-size: 1.5rem; color: ${result.weightLimited ? 'var(--warning)' : 'inherit'};">${result.totalWeight.toFixed(1)} kg</strong>
+                        <small style="display: block; font-size: 0.65rem; color: var(--text-muted);">Max: 500kg</small>
                     </div>
                     <div class="card" style="text-align: center; border-bottom: 3px solid #f59e0b;">
-                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Ocupação Sup.</span>
-                        <strong style="font-size: 1.5rem;">${result.efficiency.toFixed(1)}%</strong>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Total de Caixas</span>
+                        <strong style="font-size: 1.5rem;">${result.totalBoxes}</strong>
                     </div>
                 </div>
+                ${result.weightLimited ? `
+                <div class="card" style="margin-top: 1rem; border: 1px solid var(--warning); background: rgba(245, 158, 11, 0.05);">
+                    <p style="text-align: center; margin: 0; font-size: 0.9rem; color: var(--warning);">
+                        <i data-lucide="alert-triangle"></i> Atenção: O empilhamento foi limitado a <strong>${result.layers} camadas</strong> para não ultrapassar 500kg.
+                    </p>
+                </div>` : ''}
                 <div class="card" style="margin-top: 1rem; border: 1px dashed var(--accent);">
                     <p style="text-align: center; margin: 0; font-size: 0.9rem;">
                         <i data-lucide="info"></i> Estratégia Recomendada: <strong>${result.label}</strong>
@@ -1401,6 +1482,10 @@ const tabs = {
                             <label>Alt. (cm)</label>
                             <input type="number" id="sim-box-h" class="form-control" placeholder="0.0" step="0.1">
                         </div>
+                        <div class="form-group">
+                            <label>Peso Unit. (kg)</label>
+                            <input type="number" id="sim-box-weight" class="form-control" placeholder="0.0" step="0.01">
+                        </div>
                         <button id="btn-simulate" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; justify-content: center; height: 48px;">
                             <i data-lucide="play"></i> Simular Arranjo
                         </button>
@@ -1431,6 +1516,7 @@ const tabs = {
                 document.getElementById('sim-box-l').value = p.comprimento_cm;
                 document.getElementById('sim-box-w').value = p.largura_cm;
                 document.getElementById('sim-box-h').value = p.altura_cm;
+                document.getElementById('sim-box-weight').value = p.peso_medio_calc || 0;
                 performSimulation();
             }
         };
