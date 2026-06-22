@@ -1331,7 +1331,7 @@ const tabs = {
             ctx.setLineDash([]);
 
             if (layout && layout.boxes.length > 0) {
-                // Cálculo de Bounding Box para Centralização Real
+                // Dimensões Totais da Massa de Carga
                 const minX = Math.min(...layout.boxes.map(b => b.x));
                 const maxX = Math.max(...layout.boxes.map(b => b.x + b.w));
                 const minY = Math.min(...layout.boxes.map(b => b.y));
@@ -1343,30 +1343,47 @@ const tabs = {
                 const offsetX = (pL - loadWidth) / 2;
                 const offsetY = (pW - loadHeight) / 2;
 
-                layout.boxes.forEach((b, idx) => {
-                    let w = b.w;
-                    let h = b.h;
-                    let x = offsetX + (b.x - minX);
-                    let y = offsetY + (b.y - minY);
+                // Agrupar por Colunas Reais
+                const uniqueX = [...new Set(layout.boxes.map(b => b.x))].sort((a, b) => a - b);
 
-                    if (inverted) {
-                        x = pL - x - w;
-                        y = pW - y - h;
-                    }
+                uniqueX.forEach(ux => {
+                    const colBoxes = layout.boxes.filter(b => b.x === ux).sort((a, b) => a.y - b.y);
+                    const colLocalH = colBoxes.reduce((acc, curr) => acc + curr.h, 0);
 
-                    ctx.fillStyle = inverted ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.25)';
-                    ctx.strokeStyle = inverted ? '#10b981' : '#38bdf8';
-                    ctx.lineWidth = 1.5;
-                    ctx.fillRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
-                    ctx.strokeRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
+                    // Gap interno desta coluna para bater com a altura global da carga
+                    const colSlack = loadHeight - colLocalH;
+                    const colGapY = colBoxes.length > 1 ? colSlack / (colBoxes.length - 1) : 0;
 
-                    if (idx === 0) {
-                        ctx.fillStyle = inverted ? '#10b981' : '#38bdf8';
-                        ctx.font = 'bold 11px Sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(`${(w / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 - 2);
-                        ctx.fillText(`${(h / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 + 10);
-                    }
+                    let currentY = 0; // Relativo ao topo da massa de carga
+
+                    colBoxes.forEach((b, idx) => {
+                        let w = b.w;
+                        let h = b.h;
+                        let x = offsetX + (b.x - minX);
+                        let y = offsetY + currentY;
+
+                        if (inverted) {
+                            // No modo invertido, rotacionamos a posição relativa
+                            x = pL - x - w;
+                            y = pW - y - h;
+                        }
+
+                        ctx.fillStyle = inverted ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.25)';
+                        ctx.strokeStyle = inverted ? '#10b981' : '#38bdf8';
+                        ctx.lineWidth = 1.5;
+                        ctx.fillRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
+                        ctx.strokeRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
+
+                        if (idx === 0 && ux === uniqueX[0]) {
+                            ctx.fillStyle = inverted ? '#10b981' : '#38bdf8';
+                            ctx.font = 'bold 11px Sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(`${(w / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 - 2);
+                            ctx.fillText(`${(h / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 + 10);
+                        }
+
+                        currentY += h + colGapY;
+                    });
                 });
             }
 
