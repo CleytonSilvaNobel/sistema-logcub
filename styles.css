@@ -272,8 +272,15 @@ nav {
 
 /* Animations */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 
@@ -285,16 +292,19 @@ nav {
     position: relative;
     border-radius: 0.5rem;
 }
+
 table {
     width: 100%;
     border-collapse: collapse;
 }
+
 thead {
     position: sticky;
     top: 0;
     z-index: 10;
     background: var(--bg-card);
 }
+
 thead::after {
     content: '';
     position: absolute;
@@ -303,6 +313,7 @@ thead::after {
     width: 100%;
     border-bottom: 2px solid var(--border);
 }
+
 th {
     text-align: left;
     padding: 1rem;
@@ -311,11 +322,13 @@ th {
     font-weight: 600;
     background: var(--bg-card);
 }
+
 td {
     padding: 1rem;
     border-bottom: 1px solid var(--border);
     font-size: 0.875rem;
 }
+
 tr:hover td {
     background: rgba(255, 255, 255, 0.02);
 }
@@ -334,6 +347,7 @@ tr:hover td {
     align-items: center;
     z-index: 1000;
 }
+
 .modal {
     background: var(--bg-card);
     border-radius: 1rem;
@@ -346,17 +360,41 @@ tr:hover td {
     position: relative;
     animation: fadeIn 0.3s ease;
 }
+
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
 }
-.modal-header h3 { font-size: 1.1rem; }
 
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
-.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+.modal-header h3 {
+    font-size: 1.1rem;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+}
+
+.grid-5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+}
 
 .form-group {
     display: flex;
@@ -376,7 +414,11 @@ tr:hover td {
     gap: 0.5rem;
 }
 
-.calc-item span { font-weight: 700; color: var(--accent); font-size: 1.1rem; }
+.calc-item span {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 1.1rem;
+}
 
 .badge {
     padding: 0.25rem 0.5rem;
@@ -385,13 +427,24 @@ tr:hover td {
     text-transform: uppercase;
 }
 
-.badge-success { background: rgba(34, 197, 94, 0.2); color: var(--success); }
-.badge-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.badge-success {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--success);
+}
+
+.badge-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
 
 /* --- AUTHENTICATION --- */
 .login-screen {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: radial-gradient(circle at top right, #334155, #0f172a) !important;
     display: flex;
     align-items: center;
@@ -543,7 +596,10 @@ tr:hover td {
     border-top: 1px solid var(--border);
 }
 
-.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
 
 /* Dashboard Styles */
 /* Dashboard New Layout */
@@ -581,12 +637,14 @@ tr:hover td {
     display: flex;
     flex-direction: column;
 }
+
 .chart-card h4 {
     margin-bottom: 1.5rem;
     font-size: 1rem;
     color: var(--text-secondary);
     font-weight: 500;
 }
+
 .chart-container {
     flex: 1;
     position: relative;
@@ -634,6 +692,7 @@ tr:hover td {
 .sub-content {
     display: none;
 }
+
 .sub-content.active {
     display: block;
 }
@@ -765,8 +824,15 @@ tr:hover td {
 }
 
 @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .gestao-grid {
@@ -786,4 +852,3 @@ tr:hover td {
         grid-template-columns: 1fr;
     }
 }
-

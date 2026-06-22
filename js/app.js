@@ -87,6 +87,89 @@ const CR_CALC = {
     }
 };
 
+const PalletAlgorithm = {
+    PBR: { L: 1200, W: 1000, H: 1500 },
+
+    calculateOptimal(boxL_cm, boxW_cm, boxH_cm) {
+        const bL = boxL_cm * 10; // to mm
+        const bW = boxW_cm * 10;
+        const bH = boxH_cm * 10;
+
+        const layouts = [
+            this.calcBasic(bL, bW, this.PBR.L, this.PBR.W), // Normal
+            this.calcBasic(bW, bL, this.PBR.L, this.PBR.W), // Rotated
+            this.calcSplit(bL, bW, this.PBR.L, this.PBR.W), // Split L
+            this.calcSplit(bW, bL, this.PBR.L, this.PBR.W)  // Split W
+        ];
+
+        // Filter and find best
+        const validLayouts = layouts.filter(l => l.count > 0);
+        if (validLayouts.length === 0) return null;
+
+        const best = validLayouts.reduce((prev, curr) => (curr.count > prev.count) ? curr : prev);
+
+        const layers = Math.floor(this.PBR.H / bH);
+        return {
+            ...best,
+            layers,
+            totalBoxes: best.count * layers,
+            efficiency: (best.count * bL * bW) / (this.PBR.L * this.PBR.W) * 100
+        };
+    },
+
+    calcBasic(bL, bW, pL, pW) {
+        const cols = Math.floor(pL / bL);
+        const rows = Math.floor(pW / bW);
+        const boxes = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                boxes.push({ x: c * bL, y: r * bW, w: bL, h: bW });
+            }
+        }
+        return { count: boxes.length, boxes, label: 'Alinhamento Simples' };
+    },
+
+    calcSplit(bL, bW, pL, pW) {
+        // Try filling as much as possible with bL x bW, then use residue for bW x bL
+        const mainCols = Math.floor(pL / bL);
+        const mainRows = Math.floor(pW / bW);
+        const boxes = [];
+
+        // Fill main area
+        for (let r = 0; r < mainRows; r++) {
+            for (let c = 0; c < mainCols; c++) {
+                boxes.push({ x: c * bL, y: r * bW, w: bL, h: bW });
+            }
+        }
+
+        // Check residue horizontal (right side)
+        const residueX = pL - (mainCols * bL);
+        if (residueX >= bW) {
+            const sideCols = Math.floor(residueX / bW);
+            const sideRows = Math.floor(pW / bL);
+            for (let r = 0; r < sideRows; r++) {
+                for (let c = 0; c < sideCols; c++) {
+                    boxes.push({ x: mainCols * bL + c * bW, y: r * bL, w: bW, h: bL });
+                }
+            }
+        }
+
+        // Check residue vertical (bottom side)
+        const residueY = pW - (mainRows * bW);
+        if (residueY >= bL && residueX < bW) { // Only if not already handled by horizontal residue fully
+            const botRows = Math.floor(residueY / bL);
+            const botCols = Math.floor(pL / bW);
+            for (let r = 0; r < botRows; r++) {
+                for (let c = 0; c < botCols; c++) {
+                    boxes.push({ x: c * bW, y: mainRows * bW + r * bL, w: bW, h: bL });
+                }
+            }
+        }
+
+        return { count: boxes.length, boxes, label: 'Otimizado (Misto)' };
+    }
+};
+
 // --- STATE MANAGEMENT ---
 const STORAGE_KEYS = {
     PRODUCTS: 'cr_products',
@@ -1125,6 +1208,161 @@ const tabs = {
             renderResTable();
         };
         renderResTable(); lucide.createIcons();
+    },
+
+    paletizacao: () => {
+        clearContent();
+        let currentSimulation = null;
+
+        const drawPallet = (layout) => {
+            const canvas = document.getElementById('pallet-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const scale = Math.min(canvas.width / 1300, canvas.height / 1100);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Pallet Base
+            ctx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(50, 50, 1200 * scale, 1000 * scale);
+            ctx.setLineDash([]);
+
+            if (!layout) return;
+
+            // Draw Boxes
+            layout.boxes.forEach(b => {
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1;
+                ctx.fillRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
+                ctx.strokeRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
+            });
+
+            // Dimensions Label
+            ctx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
+            ctx.font = '12px Sans-serif';
+            ctx.fillText('1.20m', 50 + (1200 * scale) / 2 - 20, 40);
+            ctx.save();
+            ctx.translate(40, 50 + (1000 * scale) / 2 + 20);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('1.00m', 0, 0);
+            ctx.restore();
+        };
+
+        const performSimulation = () => {
+            const comp = parseFloat(document.getElementById('sim-box-l').value);
+            const larg = parseFloat(document.getElementById('sim-box-w').value);
+            const alt = parseFloat(document.getElementById('sim-box-h').value);
+
+            if (!comp || !larg || !alt) {
+                renderToast('Informe todas as dimensões da caixa.', 'warning');
+                return;
+            }
+
+            const result = PalletAlgorithm.calculateOptimal(comp, larg, alt);
+            currentSimulation = result;
+
+            if (!result) {
+                renderToast('Não foi possível acomodar esta caixa no palete.', 'danger');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('sim-results');
+            resultsDiv.innerHTML = `
+                <div class="grid-4" style="margin-top: 1.5rem;">
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #38bdf8;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Caixas / Camada</span>
+                        <strong style="font-size: 1.5rem;">${result.count}</strong>
+                    </div>
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #818cf8;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Qtd. Camadas</span>
+                        <strong style="font-size: 1.5rem;">${result.layers}</strong>
+                        <small style="display: block; font-size: 0.65rem; color: var(--text-muted);">Até 1.50m</small>
+                    </div>
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #10b981;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Total no Palete</span>
+                        <strong style="font-size: 1.5rem;">${result.totalBoxes}</strong>
+                    </div>
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #f59e0b;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Ocupação Sup.</span>
+                        <strong style="font-size: 1.5rem;">${result.efficiency.toFixed(1)}%</strong>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: 1rem; border: 1px dashed var(--accent);">
+                    <p style="text-align: center; margin: 0; font-size: 0.9rem;">
+                        <i data-lucide="info"></i> Estratégia Recomendada: <strong>${result.label}</strong>
+                    </p>
+                </div>
+            `;
+            drawPallet(result);
+            lucide.createIcons();
+        };
+
+        const activeProducts = state.products.filter(p => p.ativo !== false).sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+        document.getElementById('tab-content').innerHTML = `
+            <div class="fade-in">
+                <div style="margin-bottom: 2rem;">
+                    <h2>Simulador de Paletização (PBR)</h2>
+                    <p style="color: var(--text-secondary);">Arranjo otimizado em paletes padrão 1,00m x 1,20m x 1,50m.</p>
+                </div>
+
+                <div class="grid-2" style="grid-template-columns: 350px 1fr; gap: 2rem; align-items: start;">
+                    <div class="card">
+                        <h4 style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="settings-2"></i> Parâmetros da Caixa
+                        </h4>
+                        <div class="form-group">
+                            <label>Selecionar Produto</label>
+                            <select id="sim-product-select" class="form-control">
+                                <option value="">Novo dimensional...</option>
+                                ${activeProducts.map(p => `<option value="${p.id}">${p.codigo} - ${p.descricao}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="grid-2" style="margin-top: 1rem;">
+                            <div class="form-group">
+                                <label>Comp. (cm)</label>
+                                <input type="number" id="sim-box-l" class="form-control" placeholder="0.0" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label>Larg. (cm)</label>
+                                <input type="number" id="sim-box-w" class="form-control" placeholder="0.0" step="0.1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Alt. (cm)</label>
+                            <input type="number" id="sim-box-h" class="form-control" placeholder="0.0" step="0.1">
+                        </div>
+                        <button id="btn-simulate" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; justify-content: center; height: 48px;">
+                            <i data-lucide="play"></i> Simular Arranjo
+                        </button>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="card" style="display: flex; justify-content: center; background: var(--bg-main); padding: 2rem;">
+                            <canvas id="pallet-canvas" width="600" height="500" style="max-width: 100%; height: auto;"></canvas>
+                        </div>
+                        <div id="sim-results"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('sim-product-select').onchange = (e) => {
+            const p = state.products.find(x => x.id === e.target.value);
+            if (p) {
+                document.getElementById('sim-box-l').value = p.comprimento_cm;
+                document.getElementById('sim-box-w').value = p.largura_cm;
+                document.getElementById('sim-box-h').value = p.altura_cm;
+                performSimulation();
+            }
+        };
+
+        document.getElementById('btn-simulate').onclick = performSimulation;
+
+        drawPallet(null);
+        lucide.createIcons();
     },
 
     dashboards: () => {
@@ -2191,6 +2429,7 @@ const setupApplication = (activeTabId) => {
     const tabsList = [
         { id: 'cadastros', icon: 'database', label: 'Cadastros', show: true },
         { id: 'resultados', icon: 'bar-chart-3', label: 'Resultados', show: state.can('view_results') },
+        { id: 'paletizacao', icon: 'package', label: 'Paletização', show: true },
         { id: 'simulacao', icon: 'flask-conical', label: 'Simulação', show: state.can('view_simulation') },
         { id: 'dashboards', icon: 'pie-chart', label: 'Dashboard', show: state.can('view_dashboard') },
         { id: 'gestao', icon: 'settings', label: 'Gestão', show: state.can('manage_users') }
