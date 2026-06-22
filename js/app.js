@@ -88,7 +88,8 @@ const CR_CALC = {
 };
 
 const PalletAlgorithm = {
-    PBR: { L: 1200, W: 1000, H: 1500, MaxWeight: 500 },
+    // H: Altura útil = 1500mm total - 150mm base do palete PBR = 1350mm
+    PBR: { L: 1200, W: 1000, H: 1350, MaxWeight: 500 },
 
     calculateOptimal(boxL_cm, boxW_cm, boxH_cm, boxWeight_kg) {
         const bL = boxL_cm * 10;
@@ -792,29 +793,23 @@ const openProductModal = (product = null) => {
 
 const exportToExcel = () => {
     if (state.products.length === 0) { renderToast('Nenhum produto para exportar.', 'error'); return; }
-    const data = state.products.map(p => ({
-        'Status': p.ativo !== false ? 'Ativo' : 'Inativo',
-        'Código': p.codigo,
-        'Descrição': p.descricao,
-        'Cliente': p.cliente || '',
-        'Comprimento (cm)': p.comprimento_cm,
-        'Largura (cm)': p.largura_cm,
-        'Altura (cm)': p.altura_cm,
-        'Peso 1': p.peso1_kg || '',
-        'Peso 2': p.peso2_kg || '',
-        'Peso 3': p.peso3_kg || '',
-        'Peso 4': p.peso4_kg || '',
-        'Peso 5': p.peso5_kg || '',
-        'Peso Médio (kg)': p.peso_medio_calc,
-        'm³': p.volume_m3_calc,
-        'Densidade (kg/m³)': CR_CALC.calcDensidade(p.peso_medio_calc, p.volume_m3_calc),
-        'Comp. Palete (cm)': p.pallet_comprimento || '',
-        'Larg. Palete (cm)': p.pallet_largura || '',
-        'Alt. Palete (cm)': p.pallet_altura || '',
-        'Qtd. Pacotes no Palete': p.pallet_qtd_pacotes || '',
-        'Consistência': CR_CALC.checkPalletConsistency(p, state.parameters.tolerancia_paletizacao).status,
-        'Autor': p.criado_por || ''
-    }));
+    const data = state.products.map(p => {
+        const palletResult = PalletAlgorithm.calculateOptimal(p.comprimento_cm, p.largura_cm, p.altura_cm, p.peso_medio_calc);
+        return {
+            'Status': p.ativo !== false ? 'Ativo' : 'Inativo',
+            'Código': p.codigo,
+            'Descrição': p.descricao,
+            'Cliente': p.cliente || '',
+            'Comprimento (cm)': p.comprimento_cm,
+            'Largura (cm)': p.largura_cm,
+            'Altura (cm)': p.altura_cm,
+            'Peso Médio (kg)': p.peso_medio_calc,
+            'Capacidade Palete (Caixas)': palletResult ? palletResult.totalBoxes : '-',
+            'm³': p.volume_m3_calc,
+            'Densidade (kg/m³)': CR_CALC.calcDensidade(p.peso_medio_calc, p.volume_m3_calc),
+            'Autor': p.criado_por || ''
+        };
+    });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Produtos");
