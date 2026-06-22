@@ -1493,6 +1493,14 @@ const tabs = {
                         </button>
                     </div>
                 </div>
+
+                <div class="card" style="margin-top: 1rem; background: var(--bg-main); border-left: 4px solid var(--accent); padding: 1rem;">
+                    <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 0.25rem;">Racional Técnico</span>
+                    <p style="margin: 0; font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">
+                        O sistema utilizou o modelo: <strong>${result.label}</strong>
+                    </p>
+                    <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">Estratégia de ocupação máxima baseada nas dimensões nominais da caixa no palete PBR.</small>
+                </div>
             `;
             drawPallet(result);
             lucide.createIcons();
