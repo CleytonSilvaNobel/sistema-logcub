@@ -1299,7 +1299,14 @@ const tabs = {
             lucide.createIcons();
         };
 
-        const activeProducts = state.products.filter(p => p.ativo !== false).sort((a, b) => a.codigo.localeCompare(b.codigo));
+        const activeProducts = state.products.filter(p => p.ativo !== false);
+        const clients = [...new Set(activeProducts.map(p => p.cliente).filter(Boolean))].sort();
+
+        const updateProductSelect = (client) => {
+            const select = document.getElementById('sim-product-select');
+            const filtered = activeProducts.filter(p => !client || p.cliente === client).sort((a, b) => a.codigo.localeCompare(b.codigo));
+            select.innerHTML = '<option value="">Novo dimensional...</option>' + filtered.map(p => `<option value="${p.id}">${p.codigo} - ${p.descricao}</option>`).join('');
+        };
 
         document.getElementById('tab-content').innerHTML = `
             <div class="fade-in">
@@ -1314,10 +1321,16 @@ const tabs = {
                             <i data-lucide="settings-2"></i> Parâmetros da Caixa
                         </h4>
                         <div class="form-group">
+                            <label>Filtrar Cliente</label>
+                            <select id="sim-client-select" class="form-control">
+                                <option value="">Todos os clientes</option>
+                                ${clients.map(c => `<option value="${c}">${c}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label>Selecionar Produto</label>
                             <select id="sim-product-select" class="form-control">
                                 <option value="">Novo dimensional...</option>
-                                ${activeProducts.map(p => `<option value="${p.id}">${p.codigo} - ${p.descricao}</option>`).join('')}
                             </select>
                         </div>
                         <div class="grid-2" style="margin-top: 1rem;">
@@ -1349,6 +1362,10 @@ const tabs = {
             </div>
         `;
 
+        document.getElementById('sim-client-select').onchange = (e) => {
+            updateProductSelect(e.target.value);
+        };
+
         document.getElementById('sim-product-select').onchange = (e) => {
             const p = state.products.find(x => x.id === e.target.value);
             if (p) {
@@ -1361,6 +1378,7 @@ const tabs = {
 
         document.getElementById('btn-simulate').onclick = performSimulation;
 
+        updateProductSelect('');
         drawPallet(null);
         lucide.createIcons();
     },
