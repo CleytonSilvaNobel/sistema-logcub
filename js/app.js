@@ -126,7 +126,17 @@ const PalletAlgorithm = {
         const valid = candidateLayouts.filter(l => l && l.count > 0);
         if (valid.length === 0) return null;
 
-        const best = valid.reduce((prev, curr) => (curr.count > prev.count) ? curr : prev);
+        const best = valid.reduce((prev, curr) => {
+            if (curr.count > prev.count) return curr;
+            if (curr.count === prev.count) {
+                const currMisto = this.checkMisto(curr.boxes);
+                const prevMisto = this.checkMisto(prev.boxes);
+                if (currMisto && !prevMisto) return curr;
+            }
+            return prev;
+        });
+
+        const isMisto = this.checkMisto(best.boxes);
 
         const layersByHeight = Math.floor(this.PBR.H / bH);
         let layers = layersByHeight;
@@ -143,12 +153,19 @@ const PalletAlgorithm = {
         return {
             ...best,
             layers,
+            isInterlocking: isMisto,
             totalBoxes: best.count * layers,
             totalWeight: best.count * layers * bWk,
             efficiency: (best.count * bL * bW) / (this.PBR.L * this.PBR.W) * 100,
             weightLimited,
             layersByHeight
         };
+    },
+
+    checkMisto(boxes) {
+        if (!boxes || boxes.length === 0) return false;
+        const w1 = boxes[0].w;
+        return boxes.some(b => b.w !== w1);
     },
 
     calcBasic(bL, bW, pL, pW, label) {
@@ -1287,7 +1304,7 @@ const tabs = {
         clearContent();
         let currentSimulation = null;
 
-        const drawPallet = (layout) => {
+        const drawPallet = (layout, inverted = false) => {
             const canvas = document.getElementById('pallet-canvas');
             const hCanvas = document.getElementById('height-canvas');
             if (!canvas || !hCanvas) return;
@@ -1299,82 +1316,70 @@ const tabs = {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
 
-            // --- TOP VIEW ---
-            // Draw Pallet Base
+            const pL = 1200;
+            const pW = 1000;
+            const pH = 1500;
+
             ctx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
             ctx.setLineDash([5, 5]);
-            ctx.strokeRect(50, 50, 1200 * scale, 1000 * scale);
+            ctx.strokeRect(50, 50, pL * scale, pW * scale);
             ctx.setLineDash([]);
 
             if (layout) {
-                // Draw Boxes
                 layout.boxes.forEach((b, idx) => {
-                    ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
-                    ctx.strokeStyle = '#38bdf8';
-                    ctx.lineWidth = 1;
-                    ctx.fillRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
-                    ctx.strokeRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
+                    let x = b.x;
+                    let y = b.y;
+                    let w = b.w;
+                    let h = b.h;
 
-                    // Label only the first box to show orientation
+                    if (inverted) {
+                        x = pL - b.x - b.w;
+                        y = pW - b.y - b.h;
+                    }
+
+                    ctx.fillStyle = inverted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)';
+                    ctx.strokeStyle = inverted ? '#10b981' : '#38bdf8';
+                    ctx.lineWidth = 1;
+                    ctx.fillRect(50 + x * scale, 50 + y * scale, w * scale, h * scale);
+                    ctx.strokeRect(50 + x * scale, 50 + y * scale, w * scale, h * scale);
+
                     if (idx === 0) {
-                        ctx.fillStyle = '#38bdf8';
+                        ctx.fillStyle = inverted ? '#10b981' : '#38bdf8';
                         ctx.font = 'bold 10px Sans-serif';
                         ctx.textAlign = 'center';
-                        ctx.fillText(`${(b.w / 10).toFixed(0)}cm`, 50 + b.x * scale + (b.w * scale) / 2, 50 + b.y * scale + (b.h * scale) / 2 - 2);
-                        ctx.fillText(`${(b.h / 10).toFixed(0)}cm`, 50 + b.x * scale + (b.w * scale) / 2, 50 + b.y * scale + (b.h * scale) / 2 + 10);
+                        ctx.fillText(`${(w / 10).toFixed(0)}cm`, 50 + x * scale + (w * scale) / 2, 50 + y * scale + (h * scale) / 2 - 2);
+                        ctx.fillText(`${(h / 10).toFixed(0)}cm`, 50 + x * scale + (w * scale) / 2, 50 + y * scale + (h * scale) / 2 + 10);
                     }
                 });
-            }
 
-            // Dimensions Label (Pallet)
-            ctx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
-            ctx.font = '12px Sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText('VISTA SUPERIOR (LAYOUT)', 50, 30);
-            ctx.fillText('1.20m', 50 + (1200 * scale) / 2 - 20, 48);
-            ctx.save();
-            ctx.translate(40, 50 + (1000 * scale) / 2 + 20);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText('1.00m', 0, 0);
-            ctx.restore();
+                hCtx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
+                hCtx.setLineDash([5, 5]);
+                hCtx.strokeRect(30, 50, 140, pH * scale);
+                hCtx.setLineDash([]);
 
-            // --- HEIGHT VIEW ---
-            const hScale = Math.min(hCanvas.width / 1400, hCanvas.height / 1800);
-            hCtx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
-            hCtx.setLineDash([5, 5]);
-            hCtx.strokeRect(100, 50, 1000 * hScale, 1500 * hScale); // PBR Limit area
-            hCtx.setLineDash([]);
-
-            hCtx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
-            hCtx.font = '12px Sans-serif';
-            hCtx.fillText('VISTA FRONTAL (EMPILHAMENTO)', 100, 30);
-
-            if (layout) {
-                const boxH = parseFloat(document.getElementById('sim-box-h').value) * 10;
-                const layers = layout.layers;
-                const palletW = 1000 * hScale;
-                const drawBoxH = boxH * hScale;
-
-                for (let i = 0; i < layers; i++) {
-                    const yPos = 50 + (1500 * hScale) - ((i + 1) * drawBoxH);
-                    hCtx.fillStyle = 'rgba(129, 140, 248, 0.2)';
-                    hCtx.strokeStyle = '#818cf8';
-                    hCtx.fillRect(100, yPos, palletW, drawBoxH);
-                    hCtx.strokeRect(100, yPos, palletW, drawBoxH);
-
-                    hCtx.fillStyle = '#818cf8';
-                    hCtx.font = 'bold 10px Sans-serif';
-                    hCtx.textAlign = 'center';
-                    hCtx.fillText(`Layer ${i + 1}`, 100 + palletW / 2, yPos + drawBoxH / 2 + 4);
+                const bH = parseFloat(document.getElementById('sim-box-h').value) * 10;
+                for (let i = 0; i < layout.layers; i++) {
+                    hCtx.fillStyle = i % 2 === 0 ? 'rgba(56, 189, 248, 0.3)' : 'rgba(129, 140, 248, 0.3)';
+                    hCtx.strokeStyle = i % 2 === 0 ? '#38bdf8' : '#818cf8';
+                    hCtx.fillRect(30, (50 + pH * scale) - (i + 1) * bH * scale, 140, bH * scale);
+                    hCtx.strokeRect(30, (50 + pH * scale) - (i + 1) * bH * scale, 140, bH * scale);
                 }
 
-                // Total height label
-                const totalH = (layers * boxH) / 10;
-                hCtx.fillStyle = '#10b981';
-                hCtx.font = 'bold 12px Sans-serif';
-                hCtx.textAlign = 'left';
-                hCtx.fillText(`Altura Total: ${totalH.toFixed(0)}cm`, 100 + palletW + 10, 50 + (1500 * hScale) - (totalH * hScale * 10 / 2));
+                hCtx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
+                hCtx.font = 'bold 10px Sans-serif';
+                hCtx.textAlign = 'center';
+                hCtx.fillText(`${(layout.layers * bH / 10).toFixed(0)} cm`, 100, (50 + pH * scale) - (layout.layers * bH * scale) - 10);
             }
+
+            ctx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
+            ctx.font = 'bold 12px Sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(inverted ? 'VISTA SUPERIOR (CAMADA PAR)' : 'VISTA SUPERIOR (CAMADA ÍMPAR)', 50, 30);
+
+            hCtx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
+            hCtx.font = 'bold 12px Sans-serif';
+            hCtx.textAlign = 'center';
+            hCtx.fillText('VISTA LATERAL', 100, 30);
         };
 
         const performSimulation = () => {
@@ -1424,14 +1429,43 @@ const tabs = {
                         <i data-lucide="alert-triangle"></i> Atenção: O empilhamento foi limitado a <strong>${result.layers} camadas</strong> para não ultrapassar 500kg.
                     </p>
                 </div>` : ''}
-                <div class="card" style="margin-top: 1rem; border: 1px dashed var(--accent);">
-                    <p style="text-align: center; margin: 0; font-size: 0.9rem;">
-                        <i data-lucide="info"></i> Estratégia Recomendada: <strong>${result.label}</strong>
-                    </p>
+                <div style="display: grid; grid-template-columns: 1fr 200px; gap: 1rem; margin-top: 1rem;">
+                    <div class="card" style="border: 1px solid ${result.isInterlocking ? 'var(--success)' : 'var(--warning)'}; border-style: ${result.isInterlocking ? 'solid' : 'dashed'}; margin: 0;">
+                        <p style="margin: 0; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="${result.isInterlocking ? 'check-circle' : 'alert-circle'}" style="color: ${result.isInterlocking ? 'var(--success)' : 'var(--warning)'}"></i>
+                            ${result.isInterlocking ?
+                    '<strong>Arranjo Seguro (Amarração Cruzada)</strong>: As caixas alternam o sentido, garantindo estabilidade e permitindo travamento entre camadas.' :
+                    '<strong>Arranjo em Coluna</strong>: Todas as caixas estão no mesmo sentido. Recomenda-se maior uso de filme stretch para estabilidade.'
+                }
+                        </p>
+                    </div>
+                    <div class="card" style="padding: 0.5rem; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.5rem; margin: 0;">
+                        <label style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary);">Ver Camada Par</label>
+                        <button id="btn-toggle-layer" class="btn btn-secondary btn-sm" style="width: 100%;">
+                            <i data-lucide="layers"></i> Alternar Inversão
+                        </button>
+                    </div>
                 </div>
             `;
             drawPallet(result);
             lucide.createIcons();
+
+            document.getElementById('btn-toggle-layer').onclick = () => {
+                const btn = document.getElementById('btn-toggle-layer');
+                const isOdd = btn.classList.toggle('active');
+                if (isOdd) {
+                    btn.innerHTML = '<i data-lucide="refresh-cw"></i> Ver Camada Ímpar';
+                    btn.style.background = 'var(--accent)';
+                    btn.style.color = 'white';
+                    drawPallet(result, true); // true for inverted
+                } else {
+                    btn.innerHTML = '<i data-lucide="layers"></i> Ver Camada Par';
+                    btn.style.background = 'var(--bg-input)';
+                    btn.style.color = 'var(--text-primary)';
+                    drawPallet(result, false);
+                }
+                lucide.createIcons();
+            };
         };
 
         const activeProducts = state.products.filter(p => p.ativo !== false);
