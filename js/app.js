@@ -1331,31 +1331,45 @@ const tabs = {
             ctx.setLineDash([]);
 
             if (layout && layout.boxes.length > 0) {
-                // Cálculo de redistribuição de espaço (Justificação)
+                // Cálculo de redistribuição de espaço (Justificação Avançada por Grade)
                 const uniqueX = [...new Set(layout.boxes.map(b => b.x))].sort((a, b) => a - b);
                 const uniqueY = [...new Set(layout.boxes.map(b => b.y))].sort((a, b) => a - b);
 
-                const maxX = Math.max(...layout.boxes.map(b => b.x + b.w));
-                const maxY = Math.max(...layout.boxes.map(b => b.y + b.h));
+                // Encontrar a largura máxima de cada "coluna" e altura máxima de cada "linha"
+                const maxWByCol = uniqueX.map(ux => Math.max(...layout.boxes.filter(b => b.x === ux).map(b => b.w)));
+                const maxHByRow = uniqueY.map(uy => Math.max(...layout.boxes.filter(b => b.y === uy).map(b => b.h)));
 
-                const slackX = pL - maxX;
-                const slackY = pW - maxY;
+                const totalMaxW = maxWByCol.reduce((a, b) => a + b, 0);
+                const totalMaxH = maxHByRow.reduce((a, b) => a + b, 0);
 
-                // Gap entre caixas para preencher o palete (Justificado)
+                const slackX = pL - totalMaxW;
+                const slackY = pW - totalMaxH;
+
                 const gapX = uniqueX.length > 1 ? slackX / (uniqueX.length - 1) : 0;
                 const gapY = uniqueY.length > 1 ? slackY / (uniqueY.length - 1) : 0;
 
-                // Se não houver como justificar (ex: 1 caixa), apenas centraliza
+                // Centralização do conjunto se sobrar espaço total
                 const centerX = uniqueX.length === 1 ? slackX / 2 : 0;
                 const centerY = uniqueY.length === 1 ? slackY / 2 : 0;
 
-                layout.boxes.forEach((b, idx) => {
-                    // Descobrir qual a posição desta caixa na "grade" para aplicar o gap acumulado
-                    const colIdx = uniqueX.indexOf(b.x);
-                    const rowIdx = uniqueY.indexOf(b.y);
+                // Mapeamento de coordenadas originais para as coordenadas "justificadas"
+                const justifiedX = {};
+                let currentX = centerX;
+                uniqueX.forEach((ux, i) => {
+                    justifiedX[ux] = currentX;
+                    currentX += maxWByCol[i] + gapX;
+                });
 
-                    let x = b.x + (colIdx * gapX) + centerX;
-                    let y = b.y + (rowIdx * gapY) + centerY;
+                const justifiedY = {};
+                let currentY = centerY;
+                uniqueY.forEach((uy, i) => {
+                    justifiedY[uy] = currentY;
+                    currentY += maxHByRow[i] + gapY;
+                });
+
+                layout.boxes.forEach((b, idx) => {
+                    let x = justifiedX[b.x];
+                    let y = justifiedY[b.y];
                     let w = b.w;
                     let h = b.h;
 
