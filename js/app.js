@@ -1331,47 +1331,52 @@ const tabs = {
             ctx.setLineDash([]);
 
             if (layout && layout.boxes.length > 0) {
-                // Cálculo de redistribuição de espaço (Justificação Avançada por Grade)
                 const uniqueX = [...new Set(layout.boxes.map(b => b.x))].sort((a, b) => a - b);
-                const uniqueY = [...new Set(layout.boxes.map(b => b.y))].sort((a, b) => a - b);
 
-                // Encontrar a largura máxima de cada "coluna" e altura máxima de cada "linha"
+                // Encontrar largura total para centralização horizontal
                 const maxWByCol = uniqueX.map(ux => Math.max(...layout.boxes.filter(b => b.x === ux).map(b => b.w)));
-                const maxHByRow = uniqueY.map(uy => Math.max(...layout.boxes.filter(b => b.y === uy).map(b => b.h)));
+                const totalLoadW = maxWByCol.reduce((a, b) => a + b, 0);
+                const startX = (pL - totalLoadW) / 2;
 
-                const totalMaxW = maxWByCol.reduce((a, b) => a + b, 0);
-                const totalMaxH = maxHByRow.reduce((a, b) => a + b, 0);
-
-                const slackX = pL - totalMaxW;
-                const slackY = pW - totalMaxH;
-
-                const gapX = uniqueX.length > 1 ? slackX / (uniqueX.length - 1) : 0;
-                const gapY = uniqueY.length > 1 ? slackY / (uniqueY.length - 1) : 0;
-
-                // Centralização do conjunto se sobrar espaço total
-                const centerX = uniqueX.length === 1 ? slackX / 2 : 0;
-                const centerY = uniqueY.length === 1 ? slackY / 2 : 0;
-
-                // Mapeamento de coordenadas originais para as coordenadas "justificadas"
+                // Mapeamento Horizontal (Sem Gaps entre colunas)
                 const justifiedX = {};
-                let currentX = centerX;
+                let currentX = startX;
                 uniqueX.forEach((ux, i) => {
                     justifiedX[ux] = currentX;
-                    currentX += maxWByCol[i] + gapX;
-                });
-
-                const justifiedY = {};
-                let currentY = centerY;
-                uniqueY.forEach((uy, i) => {
-                    justifiedY[uy] = currentY;
-                    currentY += maxHByRow[i] + gapY;
+                    currentX += maxWByCol[i];
                 });
 
                 layout.boxes.forEach((b, idx) => {
-                    let x = justifiedX[b.x];
-                    let y = justifiedY[b.y];
                     let w = b.w;
                     let h = b.h;
+                    let x = justifiedX[b.x];
+                    let y = b.y;
+
+                    // Lógica de Alinhamento Vertical Específica por Coluna
+                    if (b.x === uniqueX[0]) {
+                        // Coluna da Esquerda: Justificar para tocar extremidades (Laranja)
+                        const colBoxes = layout.boxes.filter(box => box.x === b.x).sort((a, b) => a.y - b.y);
+                        const colTotalH = colBoxes.reduce((acc, current) => acc + current.h, 0);
+                        const colSlack = pW - colTotalH;
+                        const colGapY = colBoxes.length > 1 ? colSlack / (colBoxes.length - 1) : 0;
+                        const boxIdxInCol = colBoxes.findIndex(box => box.y === b.y);
+
+                        y = 0;
+                        for (let i = 0; i < boxIdxInCol; i++) {
+                            y += colBoxes[i].h + colGapY;
+                        }
+                    } else {
+                        // Outras Colunas: Manter juntas (Sem Espaço Amarelo) e Centralizar Verticalmente
+                        const colBoxes = layout.boxes.filter(box => box.x === b.x);
+                        const colMaxH = Math.max(...layout.boxes.filter(box => box.x !== uniqueX[0]).map(box => {
+                            const siblings = layout.boxes.filter(s => s.x === box.x);
+                            return Math.max(...siblings.map(s => s.y + s.h));
+                        }));
+                        const globalLoadH = Math.max(...layout.boxes.filter(box => box.x !== uniqueX[0]).map(box => box.y + box.h));
+                        const centerY = (pW - globalLoadH) / 2;
+
+                        y = b.y + centerY;
+                    }
 
                     if (inverted) {
                         x = pL - x - w;
