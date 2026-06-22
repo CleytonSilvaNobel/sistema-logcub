@@ -1311,14 +1311,17 @@ const tabs = {
 
             const ctx = canvas.getContext('2d');
             const hCtx = hCanvas.getContext('2d');
-            const scale = Math.min(canvas.width / 1300, canvas.height / 1100);
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
 
             const pL = 1200;
             const pW = 1000;
-            const pH = 1500;
+            const pH = 1500; // Altura total visual (incluindo base de 15cm)
+            const pBaseH = 150; // Base do palete PBR (15cm)
+
+            // Ajuste de escala para caber 1500mm em 400px com margem
+            const scale = 0.22;
 
             ctx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
             ctx.setLineDash([5, 5]);
@@ -1352,6 +1355,13 @@ const tabs = {
                     }
                 });
 
+                // Desenhar Palete PBR (Base de Madeira)
+                const baseY = 50 + pH * scale;
+                hCtx.fillStyle = state.theme === 'dark' ? '#78350f' : '#92400e'; // Cor madeira
+                hCtx.fillRect(30, baseY - (pBaseH * scale), 140, pBaseH * scale);
+                hCtx.strokeStyle = '#451a03';
+                hCtx.strokeRect(30, baseY - (pBaseH * scale), 140, pBaseH * scale);
+
                 hCtx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
                 hCtx.setLineDash([5, 5]);
                 hCtx.strokeRect(30, 50, 140, pH * scale);
@@ -1359,16 +1369,18 @@ const tabs = {
 
                 const bH = parseFloat(document.getElementById('sim-box-h').value) * 10;
                 for (let i = 0; i < layout.layers; i++) {
+                    const layerY = baseY - (pBaseH * scale) - (i + 1) * bH * scale;
                     hCtx.fillStyle = i % 2 === 0 ? 'rgba(56, 189, 248, 0.3)' : 'rgba(129, 140, 248, 0.3)';
                     hCtx.strokeStyle = i % 2 === 0 ? '#38bdf8' : '#818cf8';
-                    hCtx.fillRect(30, (50 + pH * scale) - (i + 1) * bH * scale, 140, bH * scale);
-                    hCtx.strokeRect(30, (50 + pH * scale) - (i + 1) * bH * scale, 140, bH * scale);
+                    hCtx.fillRect(30, layerY, 140, bH * scale);
+                    hCtx.strokeRect(30, layerY, 140, bH * scale);
                 }
 
                 hCtx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
                 hCtx.font = 'bold 10px Sans-serif';
                 hCtx.textAlign = 'center';
-                hCtx.fillText(`${(layout.layers * bH / 10).toFixed(0)} cm`, 100, (50 + pH * scale) - (layout.layers * bH * scale) - 10);
+                const totalLoadH = layout.layers * bH / 10;
+                hCtx.fillText(`${totalLoadH.toFixed(0)} cm de carga`, 100, baseY - (pBaseH * scale) - (layout.layers * bH * scale) - 10);
             }
 
             ctx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
