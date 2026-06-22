@@ -1331,52 +1331,23 @@ const tabs = {
             ctx.setLineDash([]);
 
             if (layout && layout.boxes.length > 0) {
-                const uniqueX = [...new Set(layout.boxes.map(b => b.x))].sort((a, b) => a - b);
+                // Cálculo de Bounding Box para Centralização Real
+                const minX = Math.min(...layout.boxes.map(b => b.x));
+                const maxX = Math.max(...layout.boxes.map(b => b.x + b.w));
+                const minY = Math.min(...layout.boxes.map(b => b.y));
+                const maxY = Math.max(...layout.boxes.map(b => b.y + b.h));
 
-                // Encontrar largura total para centralização horizontal
-                const maxWByCol = uniqueX.map(ux => Math.max(...layout.boxes.filter(b => b.x === ux).map(b => b.w)));
-                const totalLoadW = maxWByCol.reduce((a, b) => a + b, 0);
-                const startX = (pL - totalLoadW) / 2;
+                const loadWidth = maxX - minX;
+                const loadHeight = maxY - minY;
 
-                // Mapeamento Horizontal (Sem Gaps entre colunas)
-                const justifiedX = {};
-                let currentX = startX;
-                uniqueX.forEach((ux, i) => {
-                    justifiedX[ux] = currentX;
-                    currentX += maxWByCol[i];
-                });
+                const offsetX = (pL - loadWidth) / 2;
+                const offsetY = (pW - loadHeight) / 2;
 
                 layout.boxes.forEach((b, idx) => {
                     let w = b.w;
                     let h = b.h;
-                    let x = justifiedX[b.x];
-                    let y = b.y;
-
-                    // Lógica de Alinhamento Vertical Específica por Coluna
-                    if (b.x === uniqueX[0]) {
-                        // Coluna da Esquerda: Justificar para tocar extremidades (Laranja)
-                        const colBoxes = layout.boxes.filter(box => box.x === b.x).sort((a, b) => a.y - b.y);
-                        const colTotalH = colBoxes.reduce((acc, current) => acc + current.h, 0);
-                        const colSlack = pW - colTotalH;
-                        const colGapY = colBoxes.length > 1 ? colSlack / (colBoxes.length - 1) : 0;
-                        const boxIdxInCol = colBoxes.findIndex(box => box.y === b.y);
-
-                        y = 0;
-                        for (let i = 0; i < boxIdxInCol; i++) {
-                            y += colBoxes[i].h + colGapY;
-                        }
-                    } else {
-                        // Outras Colunas: Manter juntas (Sem Espaço Amarelo) e Centralizar Verticalmente
-                        const colBoxes = layout.boxes.filter(box => box.x === b.x);
-                        const colMaxH = Math.max(...layout.boxes.filter(box => box.x !== uniqueX[0]).map(box => {
-                            const siblings = layout.boxes.filter(s => s.x === box.x);
-                            return Math.max(...siblings.map(s => s.y + s.h));
-                        }));
-                        const globalLoadH = Math.max(...layout.boxes.filter(box => box.x !== uniqueX[0]).map(box => box.y + box.h));
-                        const centerY = (pW - globalLoadH) / 2;
-
-                        y = b.y + centerY;
-                    }
+                    let x = offsetX + (b.x - minX);
+                    let y = offsetY + (b.y - minY);
 
                     if (inverted) {
                         x = pL - x - w;
