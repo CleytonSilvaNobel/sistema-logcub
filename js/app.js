@@ -91,37 +91,40 @@ const PalletAlgorithm = {
     // H: Altura útil = 1500mm total - 150mm base do palete PBR = 1350mm
     PBR: { L: 1200, W: 1000, H: 1350, MaxWeight: 500 },
 
-    calculateOptimal(boxL_cm, boxW_cm, boxH_cm, boxWeight_kg) {
+    calculateOptimal(boxL_cm, boxW_cm, boxH_cm, boxWeight_kg, tolerancePct = 0) {
         const bL = boxL_cm * 10;
         const bW = boxW_cm * 10;
         const bH = boxH_cm * 10;
         const bWk = boxWeight_kg || 0;
 
+        const effL = this.PBR.L * (1 + (tolerancePct / 100));
+        const effW = this.PBR.W * (1 + (tolerancePct / 100));
+
         const candidateLayouts = [];
 
         // 1. All combinations of full orientations
-        candidateLayouts.push(this.calcBasic(bL, bW, this.PBR.L, this.PBR.W, 'Alinhamento Direto (L)'));
-        candidateLayouts.push(this.calcBasic(bW, bL, this.PBR.L, this.PBR.W, 'Alinhamento Direto (W)'));
+        candidateLayouts.push(this.calcBasic(bL, bW, effL, effW, 'Alinhamento Direto (L)'));
+        candidateLayouts.push(this.calcBasic(bW, bL, effL, effW, 'Alinhamento Direto (W)'));
 
         // 2. Exhaustive Vertical Split (Two Blocks)
-        for (let m = 1; m < Math.floor(this.PBR.L / bL); m++) {
-            candidateLayouts.push(this.calcDoubleBlock(bL, bW, bW, bL, m * bL, this.PBR.L, this.PBR.W, `Vertical Split ${m}L`));
+        for (let m = 1; m < Math.floor(effL / bL); m++) {
+            candidateLayouts.push(this.calcDoubleBlock(bL, bW, bW, bL, m * bL, effL, effW, `Vertical Split ${m}L`));
         }
-        for (let m = 1; m < Math.floor(this.PBR.L / bW); m++) {
-            candidateLayouts.push(this.calcDoubleBlock(bW, bL, bL, bW, m * bW, this.PBR.L, this.PBR.W, `Vertical Split ${m}W`));
+        for (let m = 1; m < Math.floor(effL / bW); m++) {
+            candidateLayouts.push(this.calcDoubleBlock(bW, bL, bL, bW, m * bW, effL, effW, `Vertical Split ${m}W`));
         }
 
         // 3. Exhaustive Horizontal Split (Two Blocks)
-        for (let n = 1; n < Math.floor(this.PBR.W / bW); n++) {
-            candidateLayouts.push(this.calcDoubleBlockHorizontal(bL, bW, bW, bL, n * bW, this.PBR.L, this.PBR.W, `Horizontal Split ${n}W`));
+        for (let n = 1; n < Math.floor(effW / bW); n++) {
+            candidateLayouts.push(this.calcDoubleBlockHorizontal(bL, bW, bW, bL, n * bW, effL, effW, `Horizontal Split ${n}W`));
         }
-        for (let n = 1; n < Math.floor(this.PBR.W / bL); n++) {
-            candidateLayouts.push(this.calcDoubleBlockHorizontal(bW, bL, bL, bW, n * bL, this.PBR.L, this.PBR.W, `Horizontal Split ${n}L`));
+        for (let n = 1; n < Math.floor(effW / bL); n++) {
+            candidateLayouts.push(this.calcDoubleBlockHorizontal(bW, bL, bL, bW, n * bL, effL, effW, `Horizontal Split ${n}L`));
         }
 
         // 4. Residue logic (Split & Fill) - Improved
-        candidateLayouts.push(this.calcResidue(bL, bW, this.PBR.L, this.PBR.W, 'Combo Otimizado L'));
-        candidateLayouts.push(this.calcResidue(bW, bL, this.PBR.L, this.PBR.W, 'Combo Otimizado W'));
+        candidateLayouts.push(this.calcResidue(bL, bW, effL, effW, 'Combo Otimizado L'));
+        candidateLayouts.push(this.calcResidue(bW, bL, effL, effW, 'Combo Otimizado W'));
 
         // Filter valid and find best
         const valid = candidateLayouts.filter(l => l && l.count > 0);
@@ -1433,14 +1436,15 @@ const tabs = {
             const comp = parseFloat(document.getElementById('sim-box-l').value);
             const larg = parseFloat(document.getElementById('sim-box-w').value);
             const alt = parseFloat(document.getElementById('sim-box-h').value);
-            const peso = parseFloat(document.getElementById('sim-box-weight').value) || 0;
+            const weight = parseFloat(document.getElementById('sim-box-weight').value) || 0;
+            const tolerance = parseFloat(document.getElementById('sim-tolerance').value) || 0;
 
             if (!comp || !larg || !alt) {
                 renderToast('Informe todas as dimensões da caixa.', 'warning');
                 return;
             }
 
-            const result = PalletAlgorithm.calculateOptimal(comp, larg, alt, peso);
+            const result = PalletAlgorithm.calculateOptimal(comp, larg, alt, weight, tolerance);
             currentSimulation = result;
 
             if (!result) {
@@ -1450,24 +1454,31 @@ const tabs = {
 
             const resultsDiv = document.getElementById('sim-results');
             resultsDiv.innerHTML = `
-                <div class="grid-4" style="margin-top: 1.5rem;">
-                    <div class="card" style="text-align: center; border-bottom: 3px solid #38bdf8;">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-top: 1.5rem;">
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #38bdf8; padding: 1rem 0.5rem;">
                         <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Caixas / Camada</span>
                         <strong style="font-size: 1.5rem;">${result.count}</strong>
                     </div>
-                    <div class="card" style="text-align: center; border-bottom: 3px solid #818cf8;">
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #818cf8; padding: 1rem 0.5rem;">
                         <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Qtd. Camadas</span>
                         <strong style="font-size: 1.5rem;">${result.layers}</strong>
                         <small style="display: block; font-size: 0.65rem; color: var(--text-muted);">${result.weightLimited ? 'Limitado por Peso' : 'Limitado por Altura'}</small>
                     </div>
-                    <div class="card" style="text-align: center; border-bottom: 3px solid #10b981;">
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #10b981; padding: 1rem 0.5rem;">
                         <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Peso Total</span>
                         <strong style="font-size: 1.5rem; color: ${result.weightLimited ? 'var(--warning)' : 'inherit'};">${result.totalWeight.toFixed(1)} kg</strong>
                         <small style="display: block; font-size: 0.65rem; color: var(--text-muted);">Max: 500kg</small>
                     </div>
-                    <div class="card" style="text-align: center; border-bottom: 3px solid #f59e0b;">
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #f59e0b; padding: 1rem 0.5rem;">
                         <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Total de Caixas</span>
                         <strong style="font-size: 1.5rem;">${result.totalBoxes}</strong>
+                    </div>
+                    <div class="card" style="text-align: center; border-bottom: 3px solid #ec4899; padding: 1rem 0.5rem;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Capac. Explorada</span>
+                        <strong style="font-size: 1.5rem; color: #ec4899;">
+                            ${((result.totalBoxes * (comp * larg * alt)) / (120 * 100 * 135) * 100).toFixed(1)}%
+                        </strong>
+                        <small style="display: block; font-size: 0.65rem; color: var(--text-muted);">Vol. Útil (m³)</small>
                     </div>
                 </div>
                 ${result.weightLimited ? `
@@ -1571,9 +1582,17 @@ const tabs = {
                             <label>Alt. (cm)</label>
                             <input type="number" id="sim-box-h" class="form-control" placeholder="0.0" step="0.1">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="margin-top: 1rem;">
                             <label>Peso Unit. (kg)</label>
                             <input type="number" id="sim-box-weight" class="form-control" placeholder="0.0" step="0.01">
+                        </div>
+                        <div class="form-group" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                            <label style="display: flex; justify-content: space-between;">
+                                Flexibilidade / Sobra
+                                <span id="sim-tolerance-val" style="color: var(--accent); font-weight: 600;">0%</span>
+                            </label>
+                            <input type="range" id="sim-tolerance" min="0" max="10" value="0" step="1" style="width: 100%; margin-top: 0.5rem; cursor: pointer;">
+                            <small style="display: block; font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">Permite que a carga ultrapasse levemente as bordas do palete.</small>
                         </div>
                         <button id="btn-simulate" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; justify-content: center; height: 48px;">
                             <i data-lucide="play"></i> Simular Arranjo
@@ -1608,6 +1627,11 @@ const tabs = {
                 document.getElementById('sim-box-weight').value = p.peso_medio_calc || 0;
                 performSimulation();
             }
+        };
+
+        document.getElementById('sim-tolerance').oninput = (e) => {
+            document.getElementById('sim-tolerance-val').textContent = `${e.target.value}%`;
+            performSimulation();
         };
 
         document.getElementById('btn-simulate').onclick = performSimulation;
