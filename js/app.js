@@ -1317,72 +1317,99 @@ const tabs = {
 
             const pL = 1200;
             const pW = 1000;
-            const pH = 1500; // Altura total visual (incluindo base de 15cm)
-            const pBaseH = 150; // Base do palete PBR (15cm)
+            const pH = 1500;
+            const pBaseH = 150;
 
-            // Ajuste de escala para caber 1500mm em 400px com margem
-            const scale = 0.22;
+            // Diferentes escalas para cada vista para maximizar visibilidade
+            const topScale = 0.35;
+            const sideScale = 0.22;
 
+            // --- VISTA SUPERIOR ---
             ctx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
             ctx.setLineDash([5, 5]);
-            ctx.strokeRect(50, 50, pL * scale, pW * scale);
+            ctx.strokeRect(50, 50, pL * topScale, pW * topScale);
             ctx.setLineDash([]);
 
-            if (layout) {
+            if (layout && layout.boxes.length > 0) {
+                // Cálculo de redistribuição de espaço (Justificação)
+                const uniqueX = [...new Set(layout.boxes.map(b => b.x))].sort((a, b) => a - b);
+                const uniqueY = [...new Set(layout.boxes.map(b => b.y))].sort((a, b) => a - b);
+
+                const maxX = Math.max(...layout.boxes.map(b => b.x + b.w));
+                const maxY = Math.max(...layout.boxes.map(b => b.y + b.h));
+
+                const slackX = pL - maxX;
+                const slackY = pW - maxY;
+
+                // Gap entre caixas para preencher o palete (Justificado)
+                const gapX = uniqueX.length > 1 ? slackX / (uniqueX.length - 1) : 0;
+                const gapY = uniqueY.length > 1 ? slackY / (uniqueY.length - 1) : 0;
+
+                // Se não houver como justificar (ex: 1 caixa), apenas centraliza
+                const centerX = uniqueX.length === 1 ? slackX / 2 : 0;
+                const centerY = uniqueY.length === 1 ? slackY / 2 : 0;
+
                 layout.boxes.forEach((b, idx) => {
-                    let x = b.x;
-                    let y = b.y;
+                    // Descobrir qual a posição desta caixa na "grade" para aplicar o gap acumulado
+                    const colIdx = uniqueX.indexOf(b.x);
+                    const rowIdx = uniqueY.indexOf(b.y);
+
+                    let x = b.x + (colIdx * gapX) + centerX;
+                    let y = b.y + (rowIdx * gapY) + centerY;
                     let w = b.w;
                     let h = b.h;
 
                     if (inverted) {
-                        x = pL - b.x - b.w;
-                        y = pW - b.y - b.h;
+                        x = pL - x - w;
+                        y = pW - y - h;
                     }
 
-                    ctx.fillStyle = inverted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.2)';
+                    ctx.fillStyle = inverted ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.25)';
                     ctx.strokeStyle = inverted ? '#10b981' : '#38bdf8';
-                    ctx.lineWidth = 1;
-                    ctx.fillRect(50 + x * scale, 50 + y * scale, w * scale, h * scale);
-                    ctx.strokeRect(50 + x * scale, 50 + y * scale, w * scale, h * scale);
+                    ctx.lineWidth = 1.5;
+                    ctx.fillRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
+                    ctx.strokeRect(50 + x * topScale, 50 + y * topScale, w * topScale, h * topScale);
 
                     if (idx === 0) {
                         ctx.fillStyle = inverted ? '#10b981' : '#38bdf8';
-                        ctx.font = 'bold 10px Sans-serif';
+                        ctx.font = 'bold 11px Sans-serif';
                         ctx.textAlign = 'center';
-                        ctx.fillText(`${(w / 10).toFixed(0)}cm`, 50 + x * scale + (w * scale) / 2, 50 + y * scale + (h * scale) / 2 - 2);
-                        ctx.fillText(`${(h / 10).toFixed(0)}cm`, 50 + x * scale + (w * scale) / 2, 50 + y * scale + (h * scale) / 2 + 10);
+                        ctx.fillText(`${(w / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 - 2);
+                        ctx.fillText(`${(h / 10).toFixed(0)}cm`, 50 + x * topScale + (w * topScale) / 2, 50 + y * topScale + (h * topScale) / 2 + 10);
                     }
                 });
+            }
 
-                // Desenhar Palete PBR (Base de Madeira)
-                const baseY = 50 + pH * scale;
-                hCtx.fillStyle = state.theme === 'dark' ? '#78350f' : '#92400e'; // Cor madeira
-                hCtx.fillRect(30, baseY - (pBaseH * scale), 140, pBaseH * scale);
-                hCtx.strokeStyle = '#451a03';
-                hCtx.strokeRect(30, baseY - (pBaseH * scale), 140, pBaseH * scale);
+            // --- VISTA LATERAL ---
+            const baseY = 50 + pH * sideScale;
+            hCtx.fillStyle = state.theme === 'dark' ? '#78350f' : '#92400e';
+            hCtx.fillRect(30, baseY - (pBaseH * sideScale), 140, pBaseH * sideScale);
+            hCtx.strokeStyle = '#451a03';
+            hCtx.strokeRect(30, baseY - (pBaseH * sideScale), 140, pBaseH * sideScale);
 
-                hCtx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
-                hCtx.setLineDash([5, 5]);
-                hCtx.strokeRect(30, 50, 140, pH * scale);
-                hCtx.setLineDash([]);
+            hCtx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
+            hCtx.setLineDash([5, 5]);
+            hCtx.strokeRect(30, 50, 140, pH * sideScale);
+            hCtx.setLineDash([]);
 
+            if (layout) {
                 const bH = parseFloat(document.getElementById('sim-box-h').value) * 10;
                 for (let i = 0; i < layout.layers; i++) {
-                    const layerY = baseY - (pBaseH * scale) - (i + 1) * bH * scale;
-                    hCtx.fillStyle = i % 2 === 0 ? 'rgba(56, 189, 248, 0.3)' : 'rgba(129, 140, 248, 0.3)';
+                    const layerY = baseY - (pBaseH * sideScale) - (i + 1) * bH * sideScale;
+                    hCtx.fillStyle = i % 2 === 0 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(129, 140, 248, 0.35)';
                     hCtx.strokeStyle = i % 2 === 0 ? '#38bdf8' : '#818cf8';
-                    hCtx.fillRect(30, layerY, 140, bH * scale);
-                    hCtx.strokeRect(30, layerY, 140, bH * scale);
+                    hCtx.fillRect(30, layerY, 140, bH * sideScale);
+                    hCtx.strokeRect(30, layerY, 140, bH * sideScale);
                 }
 
                 hCtx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
-                hCtx.font = 'bold 10px Sans-serif';
+                hCtx.font = 'bold 11px Sans-serif';
                 hCtx.textAlign = 'center';
                 const totalLoadH = layout.layers * bH / 10;
-                hCtx.fillText(`${totalLoadH.toFixed(0)} cm de carga`, 100, baseY - (pBaseH * scale) - (layout.layers * bH * scale) - 10);
+                hCtx.fillText(`${totalLoadH.toFixed(0)} cm de carga`, 100, baseY - (pBaseH * sideScale) - (layout.layers * bH * sideScale) - 10);
             }
 
+            // Legendas
             ctx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
             ctx.font = 'bold 12px Sans-serif';
             ctx.textAlign = 'left';
