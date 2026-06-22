@@ -1216,38 +1216,92 @@ const tabs = {
 
         const drawPallet = (layout) => {
             const canvas = document.getElementById('pallet-canvas');
-            if (!canvas) return;
+            const hCanvas = document.getElementById('height-canvas');
+            if (!canvas || !hCanvas) return;
+
             const ctx = canvas.getContext('2d');
+            const hCtx = hCanvas.getContext('2d');
             const scale = Math.min(canvas.width / 1300, canvas.height / 1100);
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hCtx.clearRect(0, 0, hCanvas.width, hCanvas.height);
 
+            // --- TOP VIEW ---
             // Draw Pallet Base
             ctx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
             ctx.setLineDash([5, 5]);
             ctx.strokeRect(50, 50, 1200 * scale, 1000 * scale);
             ctx.setLineDash([]);
 
-            if (!layout) return;
+            if (layout) {
+                // Draw Boxes
+                layout.boxes.forEach((b, idx) => {
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 1;
+                    ctx.fillRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
+                    ctx.strokeRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
 
-            // Draw Boxes
-            layout.boxes.forEach(b => {
-                ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
-                ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 1;
-                ctx.fillRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
-                ctx.strokeRect(50 + b.x * scale, 50 + b.y * scale, b.w * scale, b.h * scale);
-            });
+                    // Label only the first box to show orientation
+                    if (idx === 0) {
+                        ctx.fillStyle = '#38bdf8';
+                        ctx.font = 'bold 10px Sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`${(b.w / 10).toFixed(0)}cm`, 50 + b.x * scale + (b.w * scale) / 2, 50 + b.y * scale + (b.h * scale) / 2 - 2);
+                        ctx.fillText(`${(b.h / 10).toFixed(0)}cm`, 50 + b.x * scale + (b.w * scale) / 2, 50 + b.y * scale + (b.h * scale) / 2 + 10);
+                    }
+                });
+            }
 
-            // Dimensions Label
+            // Dimensions Label (Pallet)
             ctx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
             ctx.font = '12px Sans-serif';
-            ctx.fillText('1.20m', 50 + (1200 * scale) / 2 - 20, 40);
+            ctx.textAlign = 'left';
+            ctx.fillText('VISTA SUPERIOR (LAYOUT)', 50, 30);
+            ctx.fillText('1.20m', 50 + (1200 * scale) / 2 - 20, 48);
             ctx.save();
             ctx.translate(40, 50 + (1000 * scale) / 2 + 20);
             ctx.rotate(-Math.PI / 2);
             ctx.fillText('1.00m', 0, 0);
             ctx.restore();
+
+            // --- HEIGHT VIEW ---
+            const hScale = Math.min(hCanvas.width / 1400, hCanvas.height / 1800);
+            hCtx.strokeStyle = state.theme === 'dark' ? '#475569' : '#cbd5e1';
+            hCtx.setLineDash([5, 5]);
+            hCtx.strokeRect(100, 50, 1000 * hScale, 1500 * hScale); // PBR Limit area
+            hCtx.setLineDash([]);
+
+            hCtx.fillStyle = state.theme === 'dark' ? '#94a3b8' : '#64748b';
+            hCtx.font = '12px Sans-serif';
+            hCtx.fillText('VISTA FRONTAL (EMPILHAMENTO)', 100, 30);
+
+            if (layout) {
+                const boxH = parseFloat(document.getElementById('sim-box-h').value) * 10;
+                const layers = layout.layers;
+                const palletW = 1000 * hScale;
+                const drawBoxH = boxH * hScale;
+
+                for (let i = 0; i < layers; i++) {
+                    const yPos = 50 + (1500 * hScale) - ((i + 1) * drawBoxH);
+                    hCtx.fillStyle = 'rgba(129, 140, 248, 0.2)';
+                    hCtx.strokeStyle = '#818cf8';
+                    hCtx.fillRect(100, yPos, palletW, drawBoxH);
+                    hCtx.strokeRect(100, yPos, palletW, drawBoxH);
+
+                    hCtx.fillStyle = '#818cf8';
+                    hCtx.font = 'bold 10px Sans-serif';
+                    hCtx.textAlign = 'center';
+                    hCtx.fillText(`Layer ${i + 1}`, 100 + palletW / 2, yPos + drawBoxH / 2 + 4);
+                }
+
+                // Total height label
+                const totalH = (layers * boxH) / 10;
+                hCtx.fillStyle = '#10b981';
+                hCtx.font = 'bold 12px Sans-serif';
+                hCtx.textAlign = 'left';
+                hCtx.fillText(`Altura Total: ${totalH.toFixed(0)}cm`, 100 + palletW + 10, 50 + (1500 * hScale) - (totalH * hScale * 10 / 2));
+            }
         };
 
         const performSimulation = () => {
@@ -1353,8 +1407,13 @@ const tabs = {
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
-                        <div class="card" style="display: flex; justify-content: center; background: var(--bg-main); padding: 2rem;">
-                            <canvas id="pallet-canvas" width="600" height="500" style="max-width: 100%; height: auto;"></canvas>
+                        <div class="card" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; background: var(--bg-main); padding: 2rem;">
+                            <div style="text-align: center;">
+                                <canvas id="pallet-canvas" width="500" height="400" style="max-width: 100%; height: auto;"></canvas>
+                            </div>
+                            <div style="text-align: center; border-left: 1px solid var(--border); padding-left: 1rem;">
+                                <canvas id="height-canvas" width="400" height="400" style="max-width: 100%; height: auto;"></canvas>
+                            </div>
                         </div>
                         <div id="sim-results"></div>
                     </div>
